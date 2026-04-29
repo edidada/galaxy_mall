@@ -4,6 +4,7 @@ import cn.wdidada.galaxymall.common.api.ApiResponse;
 import cn.wdidada.galaxymall.common.api.ProductView;
 import cn.wdidada.galaxymall.common.domain.Product;
 import cn.wdidada.galaxymall.common.OperationResult;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,6 +26,11 @@ public class ProductController {
         return result.success()
                 ? ApiResponse.success(result.message(), toView(result.data()))
                 : ApiResponse.failure(result.message());
+    }
+
+    @GetMapping(value = "/{productId}/page", produces = MediaType.TEXT_HTML_VALUE)
+    public String getStaticPage(@PathVariable String productId) {
+        return productCatalogService.renderStaticPage(productId);
     }
 
     private ProductView toView(Product product) {

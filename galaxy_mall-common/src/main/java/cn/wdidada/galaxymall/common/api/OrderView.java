@@ -6,6 +6,8 @@ public record OrderView(
         String productId,
         int quantity,
         int amountCent,
-        String status
+        String status,
+        String queueToken,
+        long acceptedEpochMillis
 ) {
 }

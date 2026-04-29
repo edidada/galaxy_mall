@@ -23,7 +23,7 @@ public final class Order {
         this.amountCent = amountCent;
         this.seckill = seckill;
         this.createdAt = Instant.now();
-        this.status = OrderStatus.STOCK_RESERVED;
+        this.status = OrderStatus.SUBMITTED;
     }
 
     public String orderId() {

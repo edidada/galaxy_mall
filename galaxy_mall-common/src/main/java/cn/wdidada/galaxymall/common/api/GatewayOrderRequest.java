@@ -7,6 +7,7 @@ public record GatewayOrderRequest(
         @NotBlank String userId,
         @NotBlank String productId,
         @Min(1) int quantity,
-        @NotBlank String clientIp
+        @NotBlank String clientIp,
+        String queueToken
 ) {
 }

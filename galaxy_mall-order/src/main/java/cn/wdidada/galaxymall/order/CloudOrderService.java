@@ -5,14 +5,12 @@ import cn.wdidada.galaxymall.common.api.ApiResponse;
 import cn.wdidada.galaxymall.common.api.CreateOrderRequest;
 import cn.wdidada.galaxymall.common.api.OrderView;
 import cn.wdidada.galaxymall.common.api.ProductView;
-import cn.wdidada.galaxymall.common.api.StockDeductRequest;
-import cn.wdidada.galaxymall.common.api.StockView;
 import cn.wdidada.galaxymall.common.client.ProductClient;
-import cn.wdidada.galaxymall.common.client.StockClient;
 import cn.wdidada.galaxymall.common.domain.Order;
 import cn.wdidada.galaxymall.common.domain.OrderStatus;
 import cn.wdidada.galaxymall.db.LocalBinlogRepository;
 import cn.wdidada.galaxymall.db.OrderRepository;
+import cn.wdidada.galaxymall.message.InMemoryMessageBus;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import cn.wdidada.galaxymall.monitor.TraceLogger;
 
@@ -23,7 +21,7 @@ public final class CloudOrderService {
     private final MetricsCollector metricsCollector;
     private final TraceLogger traceLogger;
     private final ProductClient productClient;
-    private final StockClient stockClient;
+    private final InMemoryMessageBus messageBus;
 
     public CloudOrderService(
             OrderRepository orderRepository,
@@ -31,25 +29,20 @@ public final class CloudOrderService {
             MetricsCollector metricsCollector,
             TraceLogger traceLogger,
             ProductClient productClient,
-            StockClient stockClient
+            InMemoryMessageBus messageBus
     ) {
         this.orderRepository = orderRepository;
         this.localBinlogRepository = localBinlogRepository;
         this.metricsCollector = metricsCollector;
         this.traceLogger = traceLogger;
         this.productClient = productClient;
-        this.stockClient = stockClient;
+        this.messageBus = messageBus;
     }
 
     public ApiResponse<OrderView> createOrder(CreateOrderRequest request) {
         ApiResponse<ProductView> productResponse = productClient.getProduct(request.productId());
         if (!productResponse.success() || productResponse.data() == null) {
             return ApiResponse.failure("product-not-found");
-        }
-
-        ApiResponse<StockView> stockResponse = stockClient.reserve(new StockDeductRequest(request.productId(), request.quantity()));
-        if (!stockResponse.success()) {
-            return ApiResponse.failure(stockResponse.message());
         }
 
         ProductView product = productResponse.data();
@@ -61,12 +54,13 @@ public final class CloudOrderService {
                 product.priceCent() * request.quantity(),
                 product.seckillProduct()
         );
-        order.updateStatus(OrderStatus.WAITING_PAYMENT);
+        order.updateStatus(OrderStatus.SUBMITTED);
         orderRepository.save(order);
-        localBinlogRepository.append("ORDER_CREATED|" + order.orderId() + "|" + request.userId() + "|" + request.productId());
-        metricsCollector.increment("order.created");
-        traceLogger.log("order-service", "create", order.orderId());
-        return ApiResponse.success("order-created", toView(order));
+        localBinlogRepository.append("ORDER_SUBMITTED|" + order.orderId() + "|" + request.userId() + "|" + request.productId());
+        messageBus.publish(OrderTopics.ORDER_SUBMITTED, order.orderId(), new OrderSubmittedEvent(order.orderId()));
+        metricsCollector.increment("order.submitted");
+        traceLogger.log("order-service", "submit", order.orderId());
+        return ApiResponse.success("order-submitted", toView(order));
     }
 
     public ApiResponse<OrderView> getOrder(String orderId) {
@@ -78,6 +72,9 @@ public final class CloudOrderService {
     public ApiResponse<OrderView> markPaid(String orderId) {
         return orderRepository.findById(orderId)
                 .map(order -> {
+                    if (order.status() != OrderStatus.WAITING_PAYMENT) {
+                        return ApiResponse.<OrderView>failure("order-not-payable");
+                    }
                     order.updateStatus(OrderStatus.PAID);
                     localBinlogRepository.append("ORDER_PAID|" + orderId);
                     metricsCollector.increment("order.paid");
@@ -94,7 +91,9 @@ public final class CloudOrderService {
                 order.productId(),
                 order.quantity(),
                 order.amountCent(),
-                order.status().name()
+                order.status().name(),
+                null,
+                order.createdAt().toEpochMilli()
         );
     }
 }

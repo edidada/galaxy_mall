@@ -1,6 +1,6 @@
 # galaxy_mall
 
-基于 `design.md`，本仓库已经从单模块示例工程升级为 Spring Boot 3 + Spring Cloud OpenFeign 的 Maven 多模块微服务工程。当前实现重点是把核心服务边界、HTTP 接口、服务间调用、网关编排和可执行服务产物真正落下来，而不是只保留单 JVM 的演示骨架。
+基于 `design.md`，本仓库已经从单模块示例工程升级为 Spring Boot 3 + Spring Cloud OpenFeign 的 Maven 多模块微服务工程。当前实现重点不再只是“服务拆分”，而是把大促核心链路往“流量削峰、读静态化、写异步化、库存本地化”推进。
 
 ## 这次我实际做了什么
 
@@ -79,12 +79,15 @@
 - 支付工作流：
   `[CloudPaymentService.java](galaxy_mall/galaxy_mall-payment/src/main/java/cn/wdidada/galaxymall/payment/CloudPaymentService.java)`
 
-6. 保留并复用了之前骨架里有价值的能力：
+6. 这轮重点补强了高并发核心链路：
 
-- 商品服务继续使用多级缓存和布隆过滤器
-- 库存服务继续使用本地限流和预扣模型
-- 订单服务继续写本地 Binlog
-- 网关层继续保留按 IP / 用户 / 接口三维限流和排队页返回
+- 网关层新增令牌桶 + 漏桶双层限流，核心订单流量走“快车道 + 等待室”两段式削峰
+- 等待室支持 `queueToken`，超出快车道的请求不会直接失败，而是进入排队页并在放行时间后重试
+- 订单服务改成“提交成功即返回，后台异步消费处理”的模型
+- 订单提交后会先写本地 Binlog，再投递到内存消息总线，由后台消费者异步扣库存和推进状态机
+- 库存服务拆成 `reserve / confirm / release` 三段接口，模拟 Redis 预扣、数据库确认扣减和失败回补
+- 商品服务补了静态页直出接口，保留多级缓存和布隆过滤器能力
+- 消息总线改成后台持续消费，不再依赖手工 `drain`
 
 7. 清理了已经被 Spring 化实现替代的旧类：
 
@@ -147,11 +150,11 @@ mvn -q -DskipTests package
 
 覆盖场景：
 
-- 通过网关查询商品
-- 通过网关下单
+- 通过网关查询商品和商品静态页
+- 通过网关异步下单，轮询直到订单进入 `WAITING_PAYMENT`
 - 通过网关支付
-- 库存不足拒单
-- 同一 IP 高频访问触发排队页
+- 库存不足场景下，订单会先被受理，再在后台异步失败
+- 同一用户高频下单触发等待室，拿到 `queueToken` 后再次放行
 
 ## 如何启动
 
@@ -182,6 +185,9 @@ java -jar galaxy_mall-gateway/target/galaxy_mall-gateway-1.0-SNAPSHOT-exec.jar
 - 配置文件
 - 可执行服务包
 - Spring 集成冒烟测试
+- 异步订单受理与后台消费
+- 等待室与排队令牌
+- 库存预扣 / 确认 / 回补三段模型
 
 但它还不是完整的生产中间件接入版，当前仍然有这些边界：
 

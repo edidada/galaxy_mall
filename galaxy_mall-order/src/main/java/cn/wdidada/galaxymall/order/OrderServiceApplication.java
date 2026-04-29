@@ -4,6 +4,7 @@ import cn.wdidada.galaxymall.common.client.ProductClient;
 import cn.wdidada.galaxymall.common.client.StockClient;
 import cn.wdidada.galaxymall.db.LocalBinlogRepository;
 import cn.wdidada.galaxymall.db.OrderRepository;
+import cn.wdidada.galaxymall.message.InMemoryMessageBus;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import cn.wdidada.galaxymall.monitor.TraceLogger;
 import org.springframework.boot.SpringApplication;
@@ -40,14 +41,43 @@ public class OrderServiceApplication {
     }
 
     @Bean
+    InMemoryMessageBus inMemoryMessageBus() {
+        InMemoryMessageBus messageBus = new InMemoryMessageBus(3);
+        messageBus.start();
+        return messageBus;
+    }
+
+    @Bean
+    OrderAsyncConsumer orderAsyncConsumer(
+            OrderRepository orderRepository,
+            LocalBinlogRepository localBinlogRepository,
+            ProductClient productClient,
+            StockClient stockClient,
+            MetricsCollector metricsCollector,
+            TraceLogger traceLogger,
+            InMemoryMessageBus messageBus
+    ) {
+        OrderAsyncConsumer consumer = new OrderAsyncConsumer(
+                orderRepository,
+                localBinlogRepository,
+                productClient,
+                stockClient,
+                metricsCollector,
+                traceLogger
+        );
+        messageBus.register(OrderTopics.ORDER_SUBMITTED, consumer);
+        return consumer;
+    }
+
+    @Bean
     CloudOrderService cloudOrderService(
             OrderRepository orderRepository,
             LocalBinlogRepository localBinlogRepository,
             MetricsCollector metricsCollector,
             TraceLogger traceLogger,
             ProductClient productClient,
-            StockClient stockClient
+            InMemoryMessageBus messageBus
     ) {
-        return new CloudOrderService(orderRepository, localBinlogRepository, metricsCollector, traceLogger, productClient, stockClient);
+        return new CloudOrderService(orderRepository, localBinlogRepository, metricsCollector, traceLogger, productClient, messageBus);
     }
 }

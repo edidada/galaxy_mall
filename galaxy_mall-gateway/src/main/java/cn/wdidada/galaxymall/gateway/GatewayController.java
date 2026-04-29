@@ -38,6 +38,11 @@ public class GatewayController {
         return gatewayWorkflowService.placeOrder(request);
     }
 
+    @GetMapping("/orders/{orderId}")
+    public ApiResponse<OrderView> getOrder(@PathVariable String orderId) {
+        return gatewayWorkflowService.getOrder(orderId);
+    }
+
     @PostMapping("/payments/{orderId}")
     public ApiResponse<PaymentView> pay(@PathVariable String orderId) {
         return gatewayWorkflowService.pay(orderId);

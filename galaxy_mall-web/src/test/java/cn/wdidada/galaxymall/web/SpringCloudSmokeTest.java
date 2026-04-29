@@ -59,6 +59,12 @@ class SpringCloudSmokeTest {
         Assertions.assertTrue(productNode.get("success").asBoolean());
         Assertions.assertEquals("sku-iphone", productNode.get("data").get("productId").asText());
 
+        String staticPage = REST_CLIENT.get()
+                .uri("http://localhost:19082/api/products/sku-iphone/page")
+                .retrieve()
+                .body(String.class);
+        Assertions.assertTrue(staticPage.contains("iPhone Galaxy Edition"));
+
         String orderPayload = """
                 {
                   "userId": "u100",
@@ -75,7 +81,10 @@ class SpringCloudSmokeTest {
                 .body(String.class));
         Assertions.assertTrue(orderNode.get("success").asBoolean());
         String orderId = orderNode.get("data").get("orderId").asText();
-        Assertions.assertEquals("WAITING_PAYMENT", orderNode.get("data").get("status").asText());
+        Assertions.assertEquals("SUBMITTED", orderNode.get("data").get("status").asText());
+
+        JsonNode readyOrder = awaitOrderStatus(orderId, "WAITING_PAYMENT");
+        Assertions.assertEquals("WAITING_PAYMENT", readyOrder.get("data").get("status").asText());
 
         JsonNode payNode = parse(REST_CLIENT.post()
                 .uri("/api/gateway/payments/{orderId}", orderId)
@@ -98,18 +107,53 @@ class SpringCloudSmokeTest {
                 .body(rejectPayload)
                 .retrieve()
                 .body(String.class));
-        Assertions.assertFalse(rejectNode.get("success").asBoolean());
-        Assertions.assertEquals("stock-not-enough", rejectNode.get("message").asText());
+        Assertions.assertTrue(rejectNode.get("success").asBoolean());
+        String rejectedOrderId = rejectNode.get("data").get("orderId").asText();
+        JsonNode rejectedOrder = awaitOrderStatus(rejectedOrderId, "FAILED");
+        Assertions.assertEquals("FAILED", rejectedOrder.get("data").get("status").asText());
 
-        Thread.sleep(1100L);
-        REST_CLIENT.get().uri("/api/gateway/products/sku-iphone?userId=u300&clientIp=10.0.3.1").retrieve().body(String.class);
-        REST_CLIENT.get().uri("/api/gateway/products/sku-iphone?userId=u300&clientIp=10.0.3.1").retrieve().body(String.class);
-        JsonNode queuedNode = parse(REST_CLIENT.get()
-                .uri("/api/gateway/products/sku-iphone?userId=u300&clientIp=10.0.3.1")
+        String queuedPayload = """
+                {
+                  "userId": "u300",
+                  "productId": "sku-iphone",
+                  "quantity": 1,
+                  "clientIp": "10.0.3.1"
+                }
+                """;
+        REST_CLIENT.post().uri("/api/gateway/orders").contentType(MediaType.APPLICATION_JSON).body(queuedPayload).retrieve().body(String.class);
+        REST_CLIENT.post().uri("/api/gateway/orders").contentType(MediaType.APPLICATION_JSON).body(queuedPayload).retrieve().body(String.class);
+        REST_CLIENT.post().uri("/api/gateway/orders").contentType(MediaType.APPLICATION_JSON).body(queuedPayload).retrieve().body(String.class);
+        JsonNode queuedNode = parse(REST_CLIENT.post()
+                .uri("/api/gateway/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(queuedPayload)
                 .retrieve()
                 .body(String.class));
-        Assertions.assertFalse(queuedNode.get("success").asBoolean());
+        Assertions.assertTrue(queuedNode.get("success").asBoolean());
+        Assertions.assertEquals("QUEUED", queuedNode.get("data").get("status").asText());
+        String queueToken = queuedNode.get("data").get("queueToken").asText();
         Assertions.assertTrue(queuedNode.get("message").asText().contains("Galaxy Mall Queue"));
+
+        Thread.sleep(1100L);
+        String admittedPayload = """
+                {
+                  "userId": "u300",
+                  "productId": "sku-iphone",
+                  "quantity": 1,
+                  "clientIp": "10.0.3.1",
+                  "queueToken": "%s"
+                }
+                """.formatted(queueToken);
+        JsonNode admittedNode = parse(REST_CLIENT.post()
+                .uri("/api/gateway/orders")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(admittedPayload)
+                .retrieve()
+                .body(String.class));
+        Assertions.assertTrue(admittedNode.get("success").asBoolean());
+        String admittedOrderId = admittedNode.get("data").get("orderId").asText();
+        JsonNode admittedOrder = awaitOrderStatus(admittedOrderId, "WAITING_PAYMENT");
+        Assertions.assertEquals("WAITING_PAYMENT", admittedOrder.get("data").get("status").asText());
     }
 
     private static ConfigurableApplicationContext start(Class<?> applicationClass, String port, String... extraProperties) {
@@ -126,5 +170,22 @@ class SpringCloudSmokeTest {
 
     private static JsonNode parse(String body) throws Exception {
         return OBJECT_MAPPER.readTree(body);
+    }
+
+    private static JsonNode awaitOrderStatus(String orderId, String expectedStatus) throws Exception {
+        long deadline = System.currentTimeMillis() + 5000L;
+        JsonNode latest = null;
+        while (System.currentTimeMillis() < deadline) {
+            latest = parse(REST_CLIENT.get()
+                    .uri("/api/gateway/orders/{orderId}", orderId)
+                    .retrieve()
+                    .body(String.class));
+            if (latest.get("success").asBoolean() && expectedStatus.equals(latest.get("data").get("status").asText())) {
+                return latest;
+            }
+            Thread.sleep(100L);
+        }
+        Assertions.fail("order status did not reach " + expectedStatus + ": " + latest);
+        return latest;
     }
 }
