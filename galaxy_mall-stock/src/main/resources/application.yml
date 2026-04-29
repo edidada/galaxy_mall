@@ -1,9 +1,19 @@
 spring:
   application:
     name: galaxy-mall-stock
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
 
 server:
   port: 8083
+
+galaxy:
+  stock:
+    backend: in-memory
+    local-rate-limit: 10000
 
 management:
   endpoints:

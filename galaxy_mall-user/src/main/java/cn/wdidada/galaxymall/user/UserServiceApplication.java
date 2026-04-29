@@ -6,7 +6,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
-@SpringBootApplication(scanBasePackageClasses = UserServiceApplication.class)
+@SpringBootApplication(
+        scanBasePackageClasses = UserServiceApplication.class,
+        excludeName = {
+                "org.springframework.cloud.gateway.config.GatewayAutoConfiguration",
+                "org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration",
+                "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration"
+        }
+)
 public class UserServiceApplication {
 
     public static void main(String[] args) {

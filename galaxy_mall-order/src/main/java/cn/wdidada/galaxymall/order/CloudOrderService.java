@@ -9,34 +9,33 @@ import cn.wdidada.galaxymall.common.client.ProductClient;
 import cn.wdidada.galaxymall.common.domain.Order;
 import cn.wdidada.galaxymall.common.domain.OrderStatus;
 import cn.wdidada.galaxymall.db.LocalBinlogRepository;
-import cn.wdidada.galaxymall.db.OrderRepository;
-import cn.wdidada.galaxymall.message.InMemoryMessageBus;
+import cn.wdidada.galaxymall.db.OrderStore;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import cn.wdidada.galaxymall.monitor.TraceLogger;
 
 public final class CloudOrderService {
 
-    private final OrderRepository orderRepository;
+    private final OrderStore orderStore;
     private final LocalBinlogRepository localBinlogRepository;
     private final MetricsCollector metricsCollector;
     private final TraceLogger traceLogger;
     private final ProductClient productClient;
-    private final InMemoryMessageBus messageBus;
+    private final OrderMessagePublisher orderMessagePublisher;
 
     public CloudOrderService(
-            OrderRepository orderRepository,
+            OrderStore orderStore,
             LocalBinlogRepository localBinlogRepository,
             MetricsCollector metricsCollector,
             TraceLogger traceLogger,
             ProductClient productClient,
-            InMemoryMessageBus messageBus
+            OrderMessagePublisher orderMessagePublisher
     ) {
-        this.orderRepository = orderRepository;
+        this.orderStore = orderStore;
         this.localBinlogRepository = localBinlogRepository;
         this.metricsCollector = metricsCollector;
         this.traceLogger = traceLogger;
         this.productClient = productClient;
-        this.messageBus = messageBus;
+        this.orderMessagePublisher = orderMessagePublisher;
     }
 
     public ApiResponse<OrderView> createOrder(CreateOrderRequest request) {
@@ -55,27 +54,28 @@ public final class CloudOrderService {
                 product.seckillProduct()
         );
         order.updateStatus(OrderStatus.SUBMITTED);
-        orderRepository.save(order);
+        orderStore.save(order);
         localBinlogRepository.append("ORDER_SUBMITTED|" + order.orderId() + "|" + request.userId() + "|" + request.productId());
-        messageBus.publish(OrderTopics.ORDER_SUBMITTED, order.orderId(), new OrderSubmittedEvent(order.orderId()));
+        orderMessagePublisher.publish(new OrderSubmittedEvent(order.orderId()));
         metricsCollector.increment("order.submitted");
         traceLogger.log("order-service", "submit", order.orderId());
         return ApiResponse.success("order-submitted", toView(order));
     }
 
     public ApiResponse<OrderView> getOrder(String orderId) {
-        return orderRepository.findById(orderId)
+        return orderStore.findById(orderId)
                 .map(order -> ApiResponse.success("order-found", toView(order)))
                 .orElseGet(() -> ApiResponse.failure("order-not-found"));
     }
 
     public ApiResponse<OrderView> markPaid(String orderId) {
-        return orderRepository.findById(orderId)
+        return orderStore.findById(orderId)
                 .map(order -> {
                     if (order.status() != OrderStatus.WAITING_PAYMENT) {
                         return ApiResponse.<OrderView>failure("order-not-payable");
                     }
                     order.updateStatus(OrderStatus.PAID);
+                    orderStore.updateStatus(orderId, OrderStatus.PAID);
                     localBinlogRepository.append("ORDER_PAID|" + orderId);
                     metricsCollector.increment("order.paid");
                     traceLogger.log("order-service", "paid", orderId);

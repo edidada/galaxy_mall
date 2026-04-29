@@ -5,11 +5,32 @@ spring:
 server:
   port: 8084
 
+rocketmq:
+  name-server: ${ROCKETMQ_NAME_SERVER:127.0.0.1:9876}
+
 services:
   product:
     url: http://localhost:8082
   stock:
     url: http://localhost:8083
+
+galaxy:
+  order:
+    messaging-backend: local
+    store-backend: local
+    rocketmq:
+      topic: galaxy-order-submitted
+      consumer-group: galaxy-order-consumer
+    sharding:
+      shard-count: 2
+      table-shards: 4
+      shards:
+        - url: ${ORDER_SHARD_0_URL:jdbc:mysql://127.0.0.1:3306/galaxy_order_0?useSSL=false&serverTimezone=UTC}
+          username: ${ORDER_SHARD_0_USERNAME:root}
+          password: ${ORDER_SHARD_0_PASSWORD:root}
+        - url: ${ORDER_SHARD_1_URL:jdbc:mysql://127.0.0.1:3306/galaxy_order_1?useSSL=false&serverTimezone=UTC}
+          username: ${ORDER_SHARD_1_USERNAME:root}
+          password: ${ORDER_SHARD_1_PASSWORD:root}
 
 management:
   endpoints:

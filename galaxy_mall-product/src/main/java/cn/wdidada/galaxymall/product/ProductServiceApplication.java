@@ -8,7 +8,14 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
-@SpringBootApplication(scanBasePackageClasses = ProductServiceApplication.class)
+@SpringBootApplication(
+        scanBasePackageClasses = ProductServiceApplication.class,
+        excludeName = {
+                "org.springframework.cloud.gateway.config.GatewayAutoConfiguration",
+                "org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration",
+                "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration"
+        }
+)
 public class ProductServiceApplication {
 
     public static void main(String[] args) {

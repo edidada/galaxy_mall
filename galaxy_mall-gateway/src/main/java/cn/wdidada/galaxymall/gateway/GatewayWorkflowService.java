@@ -7,14 +7,21 @@ import cn.wdidada.galaxymall.common.api.OrderView;
 import cn.wdidada.galaxymall.common.api.PaymentView;
 import cn.wdidada.galaxymall.common.api.ProductView;
 import cn.wdidada.galaxymall.common.api.UserView;
-import cn.wdidada.galaxymall.common.client.OrderClient;
-import cn.wdidada.galaxymall.common.client.PaymentClient;
-import cn.wdidada.galaxymall.common.client.ProductClient;
-import cn.wdidada.galaxymall.common.client.UserClient;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import cn.wdidada.galaxymall.monitor.TraceLogger;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.web.client.RestClient;
 
 public final class GatewayWorkflowService {
+
+    private static final ParameterizedTypeReference<ApiResponse<UserView>> USER_RESPONSE =
+            new ParameterizedTypeReference<>() {};
+    private static final ParameterizedTypeReference<ApiResponse<ProductView>> PRODUCT_RESPONSE =
+            new ParameterizedTypeReference<>() {};
+    private static final ParameterizedTypeReference<ApiResponse<OrderView>> ORDER_RESPONSE =
+            new ParameterizedTypeReference<>() {};
+    private static final ParameterizedTypeReference<ApiResponse<PaymentView>> PAYMENT_RESPONSE =
+            new ParameterizedTypeReference<>() {};
 
     private final TokenBucketRateLimiter queryTokenBucket = new TokenBucketRateLimiter(10_000, 5_000);
     private final TokenBucketRateLimiter orderTokenBucket = new TokenBucketRateLimiter(5_000, 2_000);
@@ -22,31 +29,31 @@ public final class GatewayWorkflowService {
     private final WindowRateLimiter userLimiter = new WindowRateLimiter(3);
     private final WaitingRoomService waitingRoomService = new WaitingRoomService(1_000_000, 100_000);
     private final QueuePageService queuePageService = new QueuePageService();
-    private final UserClient userClient;
-    private final ProductClient productClient;
-    private final OrderClient orderClient;
-    private final PaymentClient paymentClient;
+    private final RestClient userServiceRestClient;
+    private final RestClient productServiceRestClient;
+    private final RestClient orderServiceRestClient;
+    private final RestClient paymentServiceRestClient;
     private final MetricsCollector metricsCollector;
     private final TraceLogger traceLogger;
 
     public GatewayWorkflowService(
-            UserClient userClient,
-            ProductClient productClient,
-            OrderClient orderClient,
-            PaymentClient paymentClient,
+            RestClient userServiceRestClient,
+            RestClient productServiceRestClient,
+            RestClient orderServiceRestClient,
+            RestClient paymentServiceRestClient,
             MetricsCollector metricsCollector,
             TraceLogger traceLogger
     ) {
-        this.userClient = userClient;
-        this.productClient = productClient;
-        this.orderClient = orderClient;
-        this.paymentClient = paymentClient;
+        this.userServiceRestClient = userServiceRestClient;
+        this.productServiceRestClient = productServiceRestClient;
+        this.orderServiceRestClient = orderServiceRestClient;
+        this.paymentServiceRestClient = paymentServiceRestClient;
         this.metricsCollector = metricsCollector;
         this.traceLogger = traceLogger;
     }
 
     public ApiResponse<ProductView> queryProduct(String userId, String productId, String clientIp) {
-        ApiResponse<UserView> userResponse = userClient.getUser(userId);
+        ApiResponse<UserView> userResponse = getUser(userId);
         if (!userResponse.success()) {
             return ApiResponse.failure("user-not-found");
         }
@@ -54,13 +61,13 @@ public final class GatewayWorkflowService {
             metricsCollector.increment("gateway.query.throttled");
             return ApiResponse.failure("query-throttled");
         }
-        ApiResponse<ProductView> productResponse = productClient.getProduct(productId);
+        ApiResponse<ProductView> productResponse = getProduct(productId);
         traceLogger.log("gateway", "queryProduct", clientIp + " " + productId + " " + productResponse.message());
         return productResponse;
     }
 
     public ApiResponse<OrderView> placeOrder(GatewayOrderRequest request) {
-        ApiResponse<UserView> userResponse = userClient.getUser(request.userId());
+        ApiResponse<UserView> userResponse = getUser(request.userId());
         if (!userResponse.success()) {
             return ApiResponse.failure("user-not-found");
         }
@@ -93,19 +100,29 @@ public final class GatewayWorkflowService {
     }
 
     public ApiResponse<OrderView> getOrder(String orderId) {
-        return orderClient.getOrder(orderId);
+        return orderServiceRestClient.get()
+                .uri("/api/orders/{orderId}", orderId)
+                .retrieve()
+                .body(ORDER_RESPONSE);
     }
 
     public ApiResponse<PaymentView> pay(String orderId) {
-        return paymentClient.pay(orderId);
+        return paymentServiceRestClient.post()
+                .uri("/api/payments/{orderId}", orderId)
+                .retrieve()
+                .body(PAYMENT_RESPONSE);
     }
 
     private ApiResponse<OrderView> submitOrder(GatewayOrderRequest request) {
-        ApiResponse<ProductView> productResponse = productClient.getProduct(request.productId());
+        ApiResponse<ProductView> productResponse = getProduct(request.productId());
         if (!productResponse.success()) {
             return ApiResponse.failure(productResponse.message());
         }
-        return orderClient.createOrder(new CreateOrderRequest(request.userId(), request.productId(), request.quantity()));
+        return orderServiceRestClient.post()
+                .uri("/api/orders")
+                .body(new CreateOrderRequest(request.userId(), request.productId(), request.quantity()))
+                .retrieve()
+                .body(ORDER_RESPONSE);
     }
 
     private boolean allowFastLane(String userId) {
@@ -118,5 +135,19 @@ public final class GatewayWorkflowService {
 
     private String businessKey(GatewayOrderRequest request) {
         return request.userId() + "|" + request.productId() + "|" + request.clientIp();
+    }
+
+    private ApiResponse<UserView> getUser(String userId) {
+        return userServiceRestClient.get()
+                .uri("/api/users/{userId}", userId)
+                .retrieve()
+                .body(USER_RESPONSE);
+    }
+
+    private ApiResponse<ProductView> getProduct(String productId) {
+        return productServiceRestClient.get()
+                .uri("/api/products/{productId}", productId)
+                .retrieve()
+                .body(PRODUCT_RESPONSE);
     }
 }

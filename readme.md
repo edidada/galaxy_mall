@@ -1,6 +1,6 @@
 # galaxy_mall
 
-基于 `design.md`，本仓库已经从单模块示例工程升级为 Spring Boot 3 + Spring Cloud OpenFeign 的 Maven 多模块微服务工程。当前实现重点不再只是“服务拆分”，而是把大促核心链路往“流量削峰、读静态化、写异步化、库存本地化”推进。
+基于 `design.md`，本仓库已经从单模块示例工程升级为 Spring Boot 3 + Spring Cloud 的 Maven 多模块微服务工程。当前实现重点不再只是“服务拆分”，而是把大促核心链路往“流量削峰、读静态化、写异步化、库存本地化”推进，并把 `Redis Lua`、`RocketMQ`、`Spring Cloud Gateway`、`JDBC 分片订单库` 这 4 条生产化路径补进了代码。
 
 ## 这次我实际做了什么
 
@@ -60,15 +60,17 @@
 `[galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/api](galaxy_mall/galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/api)`
 `[galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/client](galaxy_mall/galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/client)`
 
-5. 落了真正的 HTTP + Feign 调用链路：
+5. 落了真正的 HTTP 调用链路：
 
-- `gateway -> user`
-- `gateway -> product`
-- `gateway -> order`
-- `gateway -> payment`
+- `gateway -> user/product/order/payment` 走 `RestClient`
 - `order -> product`
 - `order -> stock`
 - `payment -> order`
+
+其中：
+
+- 网关不再依赖 `OpenFeign`，避免 `Spring Cloud Gateway` 和 Feign 子上下文相互污染
+- 订单、支付服务之间仍保留 `OpenFeign`，作为内部服务调用实现
 
 核心编排代码：
 
@@ -83,9 +85,18 @@
 
 - 网关层新增令牌桶 + 漏桶双层限流，核心订单流量走“快车道 + 等待室”两段式削峰
 - 等待室支持 `queueToken`，超出快车道的请求不会直接失败，而是进入排队页并在放行时间后重试
+- 网关正式切到 `Spring Cloud Gateway`，补了 `/edge/users/**`、`/edge/products/**`、`/edge/stocks/**`、`/edge/orders/**`、`/edge/payments/**` 路由，以及 `X-Trace-Id` 全局透传过滤器
 - 订单服务改成“提交成功即返回，后台异步消费处理”的模型
-- 订单提交后会先写本地 Binlog，再投递到内存消息总线，由后台消费者异步扣库存和推进状态机
-- 库存服务拆成 `reserve / confirm / release` 三段接口，模拟 Redis 预扣、数据库确认扣减和失败回补
+- 订单提交后会先写本地 Binlog，再发布 `OrderSubmittedEvent`
+- 消息层新增双实现：
+  - `local`：继续走内存消息总线，便于本地和测试环境自测
+  - `rocketmq`：新增 `RocketMqOrderMessagePublisher` 和 `RocketMqOrderSubmittedListener`
+- 订单存储新增双实现：
+  - `local`：内存仓储
+  - `jdbc-sharded`：`JdbcShardedOrderStore`，按 `库分片 + 表分片` 路由订单
+- 库存服务拆成 `reserve / confirm / release` 三段接口，补了 `Redis Lua` 后端：
+  - `in-memory`：本地预扣 + 本地限流
+  - `redis`：`reserve_stock.lua / confirm_stock.lua / release_stock.lua`
 - 商品服务补了静态页直出接口，保留多级缓存和布隆过滤器能力
 - 消息总线改成后台持续消费，不再依赖手工 `drain`
 
@@ -134,13 +145,13 @@
 我实际执行过以下命令：
 
 ```bash
-mvn -q clean test
+mvn -q test
 mvn -q -DskipTests package
 ```
 
 结果：
 
-- `clean test` 通过
+- `test` 通过
 - `package` 通过
 
 测试内容不是单元级 mock，而是启动 6 个 Spring Boot 服务上下文做网关级冒烟验证。
@@ -151,10 +162,12 @@ mvn -q -DskipTests package
 覆盖场景：
 
 - 通过网关查询商品和商品静态页
+- 通过 `Spring Cloud Gateway` 正式路由访问商品接口
 - 通过网关异步下单，轮询直到订单进入 `WAITING_PAYMENT`
 - 通过网关支付
 - 库存不足场景下，订单会先被受理，再在后台异步失败
 - 同一用户高频下单触发等待室，拿到 `queueToken` 后再次放行
+- 订单服务在自测中使用 `jdbc-sharded` 存储路径，验证了分片仓储链路
 
 ## 如何启动
 
@@ -181,28 +194,32 @@ java -jar galaxy_mall-gateway/target/galaxy_mall-gateway-1.0-SNAPSHOT-exec.jar
 
 - 独立服务进程
 - REST API
-- Feign 调用
+- Spring Cloud Gateway 正式路由
+- 网关层 `RestClient` 调用
+- 内部 Feign 调用
 - 配置文件
 - 可执行服务包
 - Spring 集成冒烟测试
 - 异步订单受理与后台消费
 - 等待室与排队令牌
 - 库存预扣 / 确认 / 回补三段模型
+- Redis Lua 库存脚本实现
+- RocketMQ 消息发布 / 消费实现
+- JDBC 分库分表订单存储实现
 
 但它还不是完整的生产中间件接入版，当前仍然有这些边界：
 
 - 注册中心还没有接 `Nacos/Eureka`
-- 网关还没有换成 `Spring Cloud Gateway + 路由规则`
-- 库存、订单、商品当前仍是内存仓储，不是 `MySQL + MyBatis`
-- 消息链路还没有接真实 `RocketMQ/Kafka`
-- 缓存还没有接真实 `Redis`
+- `Redis`、`RocketMQ`、分片订单库当前已经有代码路径和配置开关，但这次自测跑的是本地可回退实现，没有连真实外部中间件
+- `jdbc-sharded` 当前使用 `JdbcTemplate + H2(MySQL 模式)` 自测，生产落地还需要换成真实 `MySQL/TiDB/PolarDB-X`
+- 商品和用户服务当前仍是内存仓储，没有继续落到真实数据库
 - Sentinel、链路追踪、配置中心还没接入
 
 如果继续往“生产版”推进，下一步应该优先做：
 
 1. `Nacos` 服务注册与配置中心
-2. `Gateway` 正式路由和全局过滤器
-3. `MySQL + MyBatis-Plus`
-4. `Redis` 缓存和库存脚本
-5. `RocketMQ` 订单异步消息
-6. `Sentinel` 限流熔断
+2. `Redis` 集群与库存 Lua 脚本联调
+3. `RocketMQ` NameServer / Broker 联调和重试 / 死信策略
+4. `MySQL/TiDB` 真实分片建表、路由规则和补偿任务
+5. `Sentinel` 限流熔断
+6. `OpenTelemetry` 链路追踪

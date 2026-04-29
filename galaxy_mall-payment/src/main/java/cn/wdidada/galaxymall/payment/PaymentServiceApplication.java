@@ -7,7 +7,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
 
-@SpringBootApplication(scanBasePackageClasses = PaymentServiceApplication.class)
+@SpringBootApplication(
+        scanBasePackageClasses = PaymentServiceApplication.class,
+        excludeName = {
+                "org.springframework.cloud.gateway.config.GatewayAutoConfiguration",
+                "org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration",
+                "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration"
+        }
+)
 @EnableFeignClients(clients = OrderClient.class)
 public class PaymentServiceApplication {
 

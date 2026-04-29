@@ -16,14 +16,29 @@ public final class Order {
     private volatile OrderStatus status;
 
     public Order(String orderId, String userId, String productId, int quantity, int amountCent, boolean seckill) {
+        this(orderId, userId, productId, quantity, amountCent, seckill, Instant.now(), OrderStatus.SUBMITTED, 0);
+    }
+
+    private Order(
+            String orderId,
+            String userId,
+            String productId,
+            int quantity,
+            int amountCent,
+            boolean seckill,
+            Instant createdAt,
+            OrderStatus status,
+            int asyncAttempts
+    ) {
         this.orderId = orderId;
         this.userId = userId;
         this.productId = productId;
         this.quantity = quantity;
         this.amountCent = amountCent;
         this.seckill = seckill;
-        this.createdAt = Instant.now();
-        this.status = OrderStatus.SUBMITTED;
+        this.createdAt = createdAt;
+        this.status = status;
+        this.asyncAttempts.set(asyncAttempts);
     }
 
     public String orderId() {
@@ -68,5 +83,23 @@ public final class Order {
 
     public int asyncAttempts() {
         return asyncAttempts.get();
+    }
+
+    public void resetAsyncAttempts(int attempts) {
+        asyncAttempts.set(attempts);
+    }
+
+    public static Order restore(
+            String orderId,
+            String userId,
+            String productId,
+            int quantity,
+            int amountCent,
+            boolean seckill,
+            Instant createdAt,
+            OrderStatus status,
+            int asyncAttempts
+    ) {
+        return new Order(orderId, userId, productId, quantity, amountCent, seckill, createdAt, status, asyncAttempts);
     }
 }

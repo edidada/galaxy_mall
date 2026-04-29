@@ -8,6 +8,8 @@ import cn.wdidada.galaxymall.stock.StockServiceApplication;
 import cn.wdidada.galaxymall.user.UserServiceApplication;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.net.URISyntaxException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.AfterAll;
@@ -31,6 +33,13 @@ class SpringCloudSmokeTest {
         CONTEXTS.add(start(ProductServiceApplication.class, "19082"));
         CONTEXTS.add(start(StockServiceApplication.class, "19083"));
         CONTEXTS.add(start(OrderServiceApplication.class, "19084",
+                "galaxy.order.store-backend=jdbc-sharded",
+                "galaxy.order.sharding.shards[0].url=jdbc:h2:mem:order_shard_0;MODE=MySQL;DB_CLOSE_DELAY=-1",
+                "galaxy.order.sharding.shards[0].username=sa",
+                "galaxy.order.sharding.shards[0].password=",
+                "galaxy.order.sharding.shards[1].url=jdbc:h2:mem:order_shard_1;MODE=MySQL;DB_CLOSE_DELAY=-1",
+                "galaxy.order.sharding.shards[1].username=sa",
+                "galaxy.order.sharding.shards[1].password=",
                 "services.product.url=http://localhost:19082",
                 "services.stock.url=http://localhost:19083"));
         CONTEXTS.add(start(PaymentServiceApplication.class, "19085",
@@ -40,7 +49,9 @@ class SpringCloudSmokeTest {
                 "services.product.url=http://localhost:19082",
                 "services.stock.url=http://localhost:19083",
                 "services.order.url=http://localhost:19084",
-                "services.payment.url=http://localhost:19085"));
+                "services.payment.url=http://localhost:19085",
+                "spring.cloud.gateway.filter.json-to-grpc.enabled=false",
+                "spring.autoconfigure.exclude=org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration"));
     }
 
     @AfterAll
@@ -58,6 +69,13 @@ class SpringCloudSmokeTest {
                 .body(String.class));
         Assertions.assertTrue(productNode.get("success").asBoolean());
         Assertions.assertEquals("sku-iphone", productNode.get("data").get("productId").asText());
+
+        JsonNode edgeProductNode = parse(REST_CLIENT.get()
+                .uri("/edge/products/sku-iphone")
+                .retrieve()
+                .body(String.class));
+        Assertions.assertTrue(edgeProductNode.get("success").asBoolean());
+        Assertions.assertEquals("sku-iphone", edgeProductNode.get("data").get("productId").asText());
 
         String staticPage = REST_CLIENT.get()
                 .uri("http://localhost:19082/api/products/sku-iphone/page")
@@ -158,14 +176,30 @@ class SpringCloudSmokeTest {
 
     private static ConfigurableApplicationContext start(Class<?> applicationClass, String port, String... extraProperties) {
         List<String> properties = new ArrayList<>();
+        properties.add("spring.config.location=" + configLocation(applicationClass));
         properties.add("server.port=" + port);
         properties.add("spring.main.lazy-initialization=false");
         properties.add("logging.level.root=ERROR");
+        if (!GatewayApplication.class.equals(applicationClass)) {
+            properties.add("spring.cloud.gateway.enabled=false");
+            properties.add("spring.cloud.gateway.filter.json-to-grpc.enabled=false");
+            properties.add("spring.autoconfigure.exclude=org.springframework.cloud.gateway.config.GatewayAutoConfiguration,org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration,org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration");
+        }
         for (String extraProperty : extraProperties) {
             properties.add(extraProperty);
         }
         return new SpringApplicationBuilder(applicationClass)
                 .run(properties.stream().map(property -> "--" + property).toArray(String[]::new));
+    }
+
+    private static String configLocation(Class<?> applicationClass) {
+        try {
+            Path classesDirectory = Path.of(applicationClass.getProtectionDomain().getCodeSource().getLocation().toURI());
+            return classesDirectory.resolve("application.yml").toUri().toString();
+        }
+        catch (URISyntaxException e) {
+            throw new IllegalStateException("failed to resolve config location for " + applicationClass.getName(), e);
+        }
     }
 
     private static JsonNode parse(String body) throws Exception {
