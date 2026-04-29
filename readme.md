@@ -8,7 +8,7 @@
 
 - Spring Boot 父工程：`3.2.5`
 - Spring Cloud BOM：`2023.0.1`
-- 根聚合模块：`[pom.xml](/Users/ibqo/Develop/git/github/java/galaxy_mall/pom.xml)`
+- 根聚合模块：`[pom.xml]`
 
 2. 保留并整理多模块结构：
 
@@ -27,17 +27,17 @@
 3. 把基础服务改成独立 Spring Boot 应用：
 
 - 用户服务启动类：
-  `[UserServiceApplication.java](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-user/src/main/java/cn/wdidada/galaxymall/user/UserServiceApplication.java)`
+  `[UserServiceApplication.java](galaxy_mall/galaxy_mall-user/src/main/java/cn/wdidada/galaxymall/user/UserServiceApplication.java)`
 - 商品服务启动类：
-  `[ProductServiceApplication.java](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-product/src/main/java/cn/wdidada/galaxymall/product/ProductServiceApplication.java)`
+  `[ProductServiceApplication.java](galaxy_mall/galaxy_mall-product/src/main/java/cn/wdidada/galaxymall/product/ProductServiceApplication.java)`
 - 库存服务启动类：
-  `[StockServiceApplication.java](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-stock/src/main/java/cn/wdidada/galaxymall/stock/StockServiceApplication.java)`
+  `[StockServiceApplication.java](galaxy_mall/galaxy_mall-stock/src/main/java/cn/wdidada/galaxymall/stock/StockServiceApplication.java)`
 - 订单服务启动类：
-  `[OrderServiceApplication.java](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-order/src/main/java/cn/wdidada/galaxymall/order/OrderServiceApplication.java)`
+  `[OrderServiceApplication.java](galaxy_mall/galaxy_mall-order/src/main/java/cn/wdidada/galaxymall/order/OrderServiceApplication.java)`
 - 支付服务启动类：
-  `[PaymentServiceApplication.java](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-payment/src/main/java/cn/wdidada/galaxymall/payment/PaymentServiceApplication.java)`
+  `[PaymentServiceApplication.java](galaxy_mall/galaxy_mall-payment/src/main/java/cn/wdidada/galaxymall/payment/PaymentServiceApplication.java)`
 - 网关服务启动类：
-  `[GatewayApplication.java](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-gateway/src/main/java/cn/wdidada/galaxymall/gateway/GatewayApplication.java)`
+  `[GatewayApplication.java](galaxy_mall/galaxy_mall-gateway/src/main/java/cn/wdidada/galaxymall/gateway/GatewayApplication.java)`
 
 4. 新增并统一了公共 API 契约：
 
@@ -57,8 +57,8 @@
 - `PaymentClient`
 
 对应目录：
-`[galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/api](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/api)`
-`[galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/client](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/client)`
+`[galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/api](galaxy_mall/galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/api)`
+`[galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/client](galaxy_mall/galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/client)`
 
 5. 落了真正的 HTTP + Feign 调用链路：
 
@@ -73,11 +73,11 @@
 核心编排代码：
 
 - 网关工作流：
-  `[GatewayWorkflowService.java](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-gateway/src/main/java/cn/wdidada/galaxymall/gateway/GatewayWorkflowService.java)`
+  `[GatewayWorkflowService.java](galaxy_mall/galaxy_mall-gateway/src/main/java/cn/wdidada/galaxymall/gateway/GatewayWorkflowService.java)`
 - 订单工作流：
-  `[CloudOrderService.java](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-order/src/main/java/cn/wdidada/galaxymall/order/CloudOrderService.java)`
+  `[CloudOrderService.java](galaxy_mall/galaxy_mall-order/src/main/java/cn/wdidada/galaxymall/order/CloudOrderService.java)`
 - 支付工作流：
-  `[CloudPaymentService.java](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-payment/src/main/java/cn/wdidada/galaxymall/payment/CloudPaymentService.java)`
+  `[CloudPaymentService.java](galaxy_mall/galaxy_mall-payment/src/main/java/cn/wdidada/galaxymall/payment/CloudPaymentService.java)`
 
 6. 保留并复用了之前骨架里有价值的能力：
 
@@ -103,12 +103,12 @@
 
 对应配置文件：
 
-- `[galaxy_mall-gateway/src/main/resources/application.yml](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-gateway/src/main/resources/application.yml)`
-- `[galaxy_mall-user/src/main/resources/application.yml](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-user/src/main/resources/application.yml)`
-- `[galaxy_mall-product/src/main/resources/application.yml](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-product/src/main/resources/application.yml)`
-- `[galaxy_mall-stock/src/main/resources/application.yml](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-stock/src/main/resources/application.yml)`
-- `[galaxy_mall-order/src/main/resources/application.yml](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-order/src/main/resources/application.yml)`
-- `[galaxy_mall-payment/src/main/resources/application.yml](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-payment/src/main/resources/application.yml)`
+- `[galaxy_mall-gateway/src/main/resources/application.yml](galaxy_mall/galaxy_mall-gateway/src/main/resources/application.yml)`
+- `[galaxy_mall-user/src/main/resources/application.yml](galaxy_mall/galaxy_mall-user/src/main/resources/application.yml)`
+- `[galaxy_mall-product/src/main/resources/application.yml](galaxy_mall/galaxy_mall-product/src/main/resources/application.yml)`
+- `[galaxy_mall-stock/src/main/resources/application.yml](galaxy_mall/galaxy_mall-stock/src/main/resources/application.yml)`
+- `[galaxy_mall-order/src/main/resources/application.yml](galaxy_mall/galaxy_mall-order/src/main/resources/application.yml)`
+- `[galaxy_mall-payment/src/main/resources/application.yml](galaxy_mall/galaxy_mall-payment/src/main/resources/application.yml)`
 
 ## 产物说明
 
@@ -143,7 +143,7 @@ mvn -q -DskipTests package
 测试内容不是单元级 mock，而是启动 6 个 Spring Boot 服务上下文做网关级冒烟验证。
 
 测试文件：
-`[SpringCloudSmokeTest.java](/Users/ibqo/Develop/git/github/java/galaxy_mall/galaxy_mall-web/src/test/java/cn/wdidada/galaxymall/web/SpringCloudSmokeTest.java)`
+`[SpringCloudSmokeTest.java](galaxy_mall/galaxy_mall-web/src/test/java/cn/wdidada/galaxymall/web/SpringCloudSmokeTest.java)`
 
 覆盖场景：
 
