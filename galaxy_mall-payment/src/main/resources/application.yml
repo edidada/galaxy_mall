@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: galaxy-mall-payment
+
+server:
+  port: 8085
+
+services:
+  order:
+    url: http://localhost:8084
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
