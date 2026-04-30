@@ -36,7 +36,7 @@ class SpringCloudSmokeTest {
     private static final String REDIS_PORT = System.getProperty("galaxy.test.redis.port", "6379");
     private static final String REDIS_PASSWORD = System.getProperty("galaxy.test.redis.password", "");
     private static final String ROCKETMQ_NAMESRV = System.getProperty("galaxy.test.rocketmq.namesrv", "127.0.0.1:9876");
-    private static final String ROCKETMQ_TOPIC = "galaxy-order-submitted-it-" + UUID.randomUUID();
+    private static final String ROCKETMQ_TOPIC = System.getProperty("galaxy.test.rocketmq.topic", "galaxy-order-submitted-it");
     private static final String ROCKETMQ_CONSUMER_GROUP = "galaxy-order-consumer-it-" + UUID.randomUUID();
     private static final String ROCKETMQ_PRODUCER_GROUP = "galaxy-order-producer-it-" + UUID.randomUUID();
     private static final List<ConfigurableApplicationContext> CONTEXTS = new ArrayList<>();
@@ -290,7 +290,8 @@ class SpringCloudSmokeTest {
     }
 
     private static JsonNode awaitOrderStatus(String orderId, String expectedStatus) throws Exception {
-        long deadline = System.currentTimeMillis() + 5000L;
+        long timeoutMillis = REAL_INFRA ? 30000L : 5000L;
+        long deadline = System.currentTimeMillis() + timeoutMillis;
         JsonNode latest = null;
         while (System.currentTimeMillis() < deadline) {
             latest = parse(REST_CLIENT.get()
