@@ -1,19 +1,31 @@
 package cn.wdidada.galaxymall.order;
 
-import org.apache.rocketmq.spring.core.RocketMQTemplate;
+import java.nio.charset.StandardCharsets;
+import org.apache.rocketmq.client.producer.DefaultMQProducer;
+import org.apache.rocketmq.client.producer.SendResult;
+import org.apache.rocketmq.common.message.Message;
 
 public final class RocketMqOrderMessagePublisher implements OrderMessagePublisher {
 
-    private final RocketMQTemplate rocketMQTemplate;
+    private final DefaultMQProducer producer;
     private final String topic;
 
-    public RocketMqOrderMessagePublisher(RocketMQTemplate rocketMQTemplate, String topic) {
-        this.rocketMQTemplate = rocketMQTemplate;
+    public RocketMqOrderMessagePublisher(DefaultMQProducer producer, String topic) {
+        this.producer = producer;
         this.topic = topic;
     }
 
     @Override
     public void publish(OrderSubmittedEvent event) {
-        rocketMQTemplate.syncSend(topic, event);
+        try {
+            Message message = new Message(topic, event.orderId().getBytes(StandardCharsets.UTF_8));
+            SendResult sendResult = producer.send(message);
+            if (sendResult == null) {
+                throw new IllegalStateException("rocketmq-send-result-null");
+            }
+        }
+        catch (Exception e) {
+            throw new IllegalStateException("rocketmq-send-failed", e);
+        }
     }
 }

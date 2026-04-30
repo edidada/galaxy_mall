@@ -10,8 +10,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
@@ -23,25 +27,31 @@ import org.springframework.web.client.RestClient;
 
 class SpringCloudSmokeTest {
 
+    private static final boolean REAL_INFRA = Boolean.parseBoolean(System.getProperty("galaxy.test.realInfra", "false"));
+    private static final String MYSQL_HOST = System.getProperty("galaxy.test.mysql.host", "127.0.0.1");
+    private static final String MYSQL_PORT = System.getProperty("galaxy.test.mysql.port", "3306");
+    private static final String MYSQL_USERNAME = System.getProperty("galaxy.test.mysql.username", "root");
+    private static final String MYSQL_PASSWORD = System.getProperty("galaxy.test.mysql.password", "5%Edidada");
+    private static final String REDIS_HOST = System.getProperty("galaxy.test.redis.host", "127.0.0.1");
+    private static final String REDIS_PORT = System.getProperty("galaxy.test.redis.port", "6379");
+    private static final String REDIS_PASSWORD = System.getProperty("galaxy.test.redis.password", "");
+    private static final String ROCKETMQ_NAMESRV = System.getProperty("galaxy.test.rocketmq.namesrv", "127.0.0.1:9876");
+    private static final String ROCKETMQ_TOPIC = "galaxy-order-submitted-it-" + UUID.randomUUID();
+    private static final String ROCKETMQ_CONSUMER_GROUP = "galaxy-order-consumer-it-" + UUID.randomUUID();
+    private static final String ROCKETMQ_PRODUCER_GROUP = "galaxy-order-producer-it-" + UUID.randomUUID();
     private static final List<ConfigurableApplicationContext> CONTEXTS = new ArrayList<>();
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final RestClient REST_CLIENT = RestClient.builder().baseUrl("http://localhost:19080").build();
 
     @BeforeAll
-    static void startApplications() {
+    static void startApplications() throws Exception {
+        if (REAL_INFRA) {
+            prepareMysqlSchemas();
+        }
         CONTEXTS.add(start(UserServiceApplication.class, "19081"));
         CONTEXTS.add(start(ProductServiceApplication.class, "19082"));
-        CONTEXTS.add(start(StockServiceApplication.class, "19083"));
-        CONTEXTS.add(start(OrderServiceApplication.class, "19084",
-                "galaxy.order.store-backend=jdbc-sharded",
-                "galaxy.order.sharding.shards[0].url=jdbc:h2:mem:order_shard_0;MODE=MySQL;DB_CLOSE_DELAY=-1",
-                "galaxy.order.sharding.shards[0].username=sa",
-                "galaxy.order.sharding.shards[0].password=",
-                "galaxy.order.sharding.shards[1].url=jdbc:h2:mem:order_shard_1;MODE=MySQL;DB_CLOSE_DELAY=-1",
-                "galaxy.order.sharding.shards[1].username=sa",
-                "galaxy.order.sharding.shards[1].password=",
-                "services.product.url=http://localhost:19082",
-                "services.stock.url=http://localhost:19083"));
+        CONTEXTS.add(start(StockServiceApplication.class, "19083", stockProperties()));
+        CONTEXTS.add(start(OrderServiceApplication.class, "19084", orderProperties()));
         CONTEXTS.add(start(PaymentServiceApplication.class, "19085",
                 "services.order.url=http://localhost:19084"));
         CONTEXTS.add(start(GatewayApplication.class, "19080",
@@ -59,6 +69,50 @@ class SpringCloudSmokeTest {
         for (int i = CONTEXTS.size() - 1; i >= 0; i--) {
             CONTEXTS.get(i).close();
         }
+    }
+
+    private static String[] stockProperties() {
+        if (!REAL_INFRA) {
+            return new String[0];
+        }
+        List<String> properties = new ArrayList<>();
+        properties.add("galaxy.stock.backend=redis");
+        properties.add("spring.data.redis.host=" + REDIS_HOST);
+        properties.add("spring.data.redis.port=" + REDIS_PORT);
+        properties.add("galaxy.stock.local-rate-limit=100000");
+        if (!REDIS_PASSWORD.isBlank()) {
+            properties.add("spring.data.redis.password=" + REDIS_PASSWORD);
+        }
+        return properties.toArray(String[]::new);
+    }
+
+    private static String[] orderProperties() {
+        List<String> properties = new ArrayList<>();
+        properties.add("services.product.url=http://localhost:19082");
+        properties.add("services.stock.url=http://localhost:19083");
+        properties.add("galaxy.order.store-backend=jdbc-sharded");
+        if (REAL_INFRA) {
+            properties.add("galaxy.order.messaging-backend=rocketmq");
+            properties.add("rocketmq.name-server=" + ROCKETMQ_NAMESRV);
+            properties.add("rocketmq.producer.group=" + ROCKETMQ_PRODUCER_GROUP);
+            properties.add("galaxy.order.rocketmq.topic=" + ROCKETMQ_TOPIC);
+            properties.add("galaxy.order.rocketmq.consumer-group=" + ROCKETMQ_CONSUMER_GROUP);
+            properties.add("galaxy.order.sharding.shards[0].url=" + mysqlJdbcUrl("galaxy_order_0"));
+            properties.add("galaxy.order.sharding.shards[0].username=" + MYSQL_USERNAME);
+            properties.add("galaxy.order.sharding.shards[0].password=" + MYSQL_PASSWORD);
+            properties.add("galaxy.order.sharding.shards[1].url=" + mysqlJdbcUrl("galaxy_order_1"));
+            properties.add("galaxy.order.sharding.shards[1].username=" + MYSQL_USERNAME);
+            properties.add("galaxy.order.sharding.shards[1].password=" + MYSQL_PASSWORD);
+        }
+        else {
+            properties.add("galaxy.order.sharding.shards[0].url=jdbc:h2:mem:order_shard_0;MODE=MySQL;DB_CLOSE_DELAY=-1");
+            properties.add("galaxy.order.sharding.shards[0].username=sa");
+            properties.add("galaxy.order.sharding.shards[0].password=");
+            properties.add("galaxy.order.sharding.shards[1].url=jdbc:h2:mem:order_shard_1;MODE=MySQL;DB_CLOSE_DELAY=-1");
+            properties.add("galaxy.order.sharding.shards[1].username=sa");
+            properties.add("galaxy.order.sharding.shards[1].password=");
+        }
+        return properties.toArray(String[]::new);
     }
 
     @Test
@@ -192,6 +246,25 @@ class SpringCloudSmokeTest {
                 .run(properties.stream().map(property -> "--" + property).toArray(String[]::new));
     }
 
+    private static void prepareMysqlSchemas() throws Exception {
+        try (Connection connection = DriverManager.getConnection(adminJdbcUrl(), MYSQL_USERNAME, MYSQL_PASSWORD);
+             Statement statement = connection.createStatement()) {
+            statement.execute("create database if not exists galaxy_order_0 character set utf8mb4 collate utf8mb4_unicode_ci");
+            statement.execute("create database if not exists galaxy_order_1 character set utf8mb4 collate utf8mb4_unicode_ci");
+        }
+        resetShardTables("galaxy_order_0");
+        resetShardTables("galaxy_order_1");
+    }
+
+    private static void resetShardTables(String schema) throws Exception {
+        try (Connection connection = DriverManager.getConnection(mysqlJdbcUrl(schema), MYSQL_USERNAME, MYSQL_PASSWORD);
+             Statement statement = connection.createStatement()) {
+            for (int table = 0; table < 4; table++) {
+                statement.execute("drop table if exists t_order_" + table);
+            }
+        }
+    }
+
     private static String configLocation(Class<?> applicationClass) {
         try {
             Path classesDirectory = Path.of(applicationClass.getProtectionDomain().getCodeSource().getLocation().toURI());
@@ -200,6 +273,16 @@ class SpringCloudSmokeTest {
         catch (URISyntaxException e) {
             throw new IllegalStateException("failed to resolve config location for " + applicationClass.getName(), e);
         }
+    }
+
+    private static String adminJdbcUrl() {
+        return "jdbc:mysql://" + MYSQL_HOST + ":" + MYSQL_PORT
+                + "/?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8";
+    }
+
+    private static String mysqlJdbcUrl(String database) {
+        return "jdbc:mysql://" + MYSQL_HOST + ":" + MYSQL_PORT + "/" + database
+                + "?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8";
     }
 
     private static JsonNode parse(String body) throws Exception {

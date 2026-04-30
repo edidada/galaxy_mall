@@ -90,7 +90,7 @@
 - 订单提交后会先写本地 Binlog，再发布 `OrderSubmittedEvent`
 - 消息层新增双实现：
   - `local`：继续走内存消息总线，便于本地和测试环境自测
-  - `rocketmq`：新增 `RocketMqOrderMessagePublisher` 和 `RocketMqOrderSubmittedListener`
+  - `rocketmq`：新增 `RocketMqOrderMessagePublisher`，并在订单服务里显式装配 `DefaultMQProducer + DefaultMQPushConsumer`
 - 订单存储新增双实现：
   - `local`：内存仓储
   - `jdbc-sharded`：`JdbcShardedOrderStore`，按 `库分片 + 表分片` 路由订单
@@ -154,6 +154,30 @@ mvn -q -DskipTests package
 - `test` 通过
 - `package` 通过
 
+如果本机已经有真实中间件，也可以直接跑真实链路测试：
+
+```bash
+mvn -q test -Dgalaxy.test.realInfra=true
+```
+
+这条命令会把自测切到：
+
+- `Redis`：库存后端走 `galaxy.stock.backend=redis`
+- `MySQL`：订单后端走 `jdbc-sharded`
+- `RocketMQ`：订单异步消息走 `rocketmq`
+
+默认读取这些参数：
+
+- `galaxy.test.mysql.host=127.0.0.1`
+- `galaxy.test.mysql.port=3306`
+- `galaxy.test.mysql.username=root`
+- `galaxy.test.mysql.password=5%Edidada`
+- `galaxy.test.redis.host=127.0.0.1`
+- `galaxy.test.redis.port=6379`
+- `galaxy.test.rocketmq.namesrv=127.0.0.1:9876`
+
+这些值都可以用 `-D...` 覆盖。
+
 测试内容不是单元级 mock，而是启动 6 个 Spring Boot 服务上下文做网关级冒烟验证。
 
 测试文件：
@@ -168,6 +192,7 @@ mvn -q -DskipTests package
 - 库存不足场景下，订单会先被受理，再在后台异步失败
 - 同一用户高频下单触发等待室，拿到 `queueToken` 后再次放行
 - 订单服务在自测中使用 `jdbc-sharded` 存储路径，验证了分片仓储链路
+- 在 `-Dgalaxy.test.realInfra=true` 模式下，实际验证 `Redis + MySQL + RocketMQ` 真链路
 
 ## 如何启动
 
@@ -187,6 +212,12 @@ java -jar galaxy_mall-order/target/galaxy_mall-order-1.0-SNAPSHOT-exec.jar
 java -jar galaxy_mall-payment/target/galaxy_mall-payment-1.0-SNAPSHOT-exec.jar
 java -jar galaxy_mall-gateway/target/galaxy_mall-gateway-1.0-SNAPSHOT-exec.jar
 ```
+
+如果你要在本机起 `RocketMQ 4.8.0` 跑这套测试，可以直接复用仓库里的 broker 配置：
+
+- `[dev/rocketmq-broker.conf](galaxy_mall/dev/rocketmq-broker.conf)`
+
+这份配置已经把 broker 广播地址固定为 `127.0.0.1`，并把测试数据目录落到 `/tmp/galaxy-rocketmq`。
 
 ## 现在这版的边界
 

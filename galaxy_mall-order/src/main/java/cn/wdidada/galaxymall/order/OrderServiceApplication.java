@@ -9,8 +9,14 @@ import cn.wdidada.galaxymall.db.OrderRepository;
 import cn.wdidada.galaxymall.message.InMemoryMessageBus;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import cn.wdidada.galaxymall.monitor.TraceLogger;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import javax.sql.DataSource;
+import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
+import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
+import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -90,13 +96,25 @@ public class OrderServiceApplication {
         return new LocalOrderMessagePublisher(messageBus);
     }
 
+    @Bean(destroyMethod = "shutdown")
+    @ConditionalOnProperty(name = "galaxy.order.messaging-backend", havingValue = "rocketmq")
+    DefaultMQProducer rocketMqProducer(
+            @Value("${rocketmq.name-server}") String namesrvAddr,
+            @Value("${rocketmq.producer.group}") String producerGroup
+    ) throws Exception {
+        DefaultMQProducer producer = new DefaultMQProducer(producerGroup);
+        producer.setNamesrvAddr(namesrvAddr);
+        producer.start();
+        return producer;
+    }
+
     @Bean
     @ConditionalOnProperty(name = "galaxy.order.messaging-backend", havingValue = "rocketmq")
     OrderMessagePublisher rocketMqOrderMessagePublisher(
-            org.apache.rocketmq.spring.core.RocketMQTemplate rocketMQTemplate,
+            DefaultMQProducer rocketMqProducer,
             @Value("${galaxy.order.rocketmq.topic}") String topic
     ) {
-        return new RocketMqOrderMessagePublisher(rocketMQTemplate, topic);
+        return new RocketMqOrderMessagePublisher(rocketMqProducer, topic);
     }
 
     @Bean
@@ -140,6 +158,34 @@ public class OrderServiceApplication {
                 metricsCollector,
                 traceLogger
         );
+        return consumer;
+    }
+
+    @Bean(destroyMethod = "shutdown")
+    @ConditionalOnProperty(name = "galaxy.order.messaging-backend", havingValue = "rocketmq")
+    DefaultMQPushConsumer rocketMqOrderSubmittedConsumer(
+            @Value("${rocketmq.name-server}") String namesrvAddr,
+            @Value("${galaxy.order.rocketmq.topic}") String topic,
+            @Value("${galaxy.order.rocketmq.consumer-group}") String consumerGroup,
+            OrderAsyncConsumer rocketMqOrderAsyncConsumer
+    ) throws Exception {
+        DefaultMQPushConsumer consumer = new DefaultMQPushConsumer(consumerGroup);
+        consumer.setNamesrvAddr(namesrvAddr);
+        consumer.subscribe(topic, "*");
+        consumer.registerMessageListener(new MessageListenerConcurrently() {
+            @Override
+            public ConsumeConcurrentlyStatus consumeMessage(
+                    List<org.apache.rocketmq.common.message.MessageExt> messages,
+                    ConsumeConcurrentlyContext context
+            ) {
+                for (org.apache.rocketmq.common.message.MessageExt message : messages) {
+                    String orderId = new String(message.getBody(), StandardCharsets.UTF_8);
+                    rocketMqOrderAsyncConsumer.handle(new OrderSubmittedEvent(orderId));
+                }
+                return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
+            }
+        });
+        consumer.start();
         return consumer;
     }
 
