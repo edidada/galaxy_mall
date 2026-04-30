@@ -1,22 +1,35 @@
 spring:
   application:
     name: galaxy-mall-stock
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   data:
     redis:
       host: ${REDIS_HOST:127.0.0.1}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
 
 server:
   port: 8083
+  shutdown: graceful
 
 galaxy:
   stock:
-    backend: in-memory
-    local-rate-limit: 10000
+    backend: ${GALAXY_STOCK_BACKEND:in-memory}
+    local-rate-limit: ${GALAXY_STOCK_LOCAL_RATE_LIMIT:10000}
 
 management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus

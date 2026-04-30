@@ -23,11 +23,11 @@ public final class GatewayWorkflowService {
     private static final ParameterizedTypeReference<ApiResponse<PaymentView>> PAYMENT_RESPONSE =
             new ParameterizedTypeReference<>() {};
 
-    private final TokenBucketRateLimiter queryTokenBucket = new TokenBucketRateLimiter(10_000, 5_000);
-    private final TokenBucketRateLimiter orderTokenBucket = new TokenBucketRateLimiter(5_000, 2_000);
-    private final LeakyBucketRateLimiter orderLeakyBucket = new LeakyBucketRateLimiter(1_500, 1_000);
-    private final WindowRateLimiter userLimiter = new WindowRateLimiter(3);
-    private final WaitingRoomService waitingRoomService = new WaitingRoomService(1_000_000, 100_000);
+    private final TokenBucketRateLimiter queryTokenBucket;
+    private final TokenBucketRateLimiter orderTokenBucket;
+    private final LeakyBucketRateLimiter orderLeakyBucket;
+    private final WindowRateLimiter userLimiter;
+    private final WaitingRoomService waitingRoomService;
     private final QueuePageService queuePageService = new QueuePageService();
     private final RestClient userServiceRestClient;
     private final RestClient productServiceRestClient;
@@ -41,6 +41,7 @@ public final class GatewayWorkflowService {
             RestClient productServiceRestClient,
             RestClient orderServiceRestClient,
             RestClient paymentServiceRestClient,
+            GatewayTrafficProperties trafficProperties,
             MetricsCollector metricsCollector,
             TraceLogger traceLogger
     ) {
@@ -48,6 +49,23 @@ public final class GatewayWorkflowService {
         this.productServiceRestClient = productServiceRestClient;
         this.orderServiceRestClient = orderServiceRestClient;
         this.paymentServiceRestClient = paymentServiceRestClient;
+        this.queryTokenBucket = new TokenBucketRateLimiter(
+                trafficProperties.getQuery().getTokenCapacity(),
+                trafficProperties.getQuery().getRefillPerSecond()
+        );
+        this.orderTokenBucket = new TokenBucketRateLimiter(
+                trafficProperties.getOrder().getTokenCapacity(),
+                trafficProperties.getOrder().getRefillPerSecond()
+        );
+        this.orderLeakyBucket = new LeakyBucketRateLimiter(
+                trafficProperties.getOrder().getLeakyBucketCapacity(),
+                trafficProperties.getOrder().getLeakyBucketPerSecond()
+        );
+        this.userLimiter = new WindowRateLimiter(trafficProperties.getOrder().getUserWindowLimit());
+        this.waitingRoomService = new WaitingRoomService(
+                trafficProperties.getWaitingRoom().getCapacity(),
+                trafficProperties.getWaitingRoom().getReleasePerSecond()
+        );
         this.metricsCollector = metricsCollector;
         this.traceLogger = traceLogger;
     }

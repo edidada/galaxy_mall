@@ -1,29 +1,41 @@
 spring:
   application:
     name: galaxy-mall-order
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: ${GALAXY_ORDER_FEIGN_CONNECT_TIMEOUT_MS:1000}
+            readTimeout: ${GALAXY_ORDER_FEIGN_READ_TIMEOUT_MS:3000}
 
 server:
   port: 8084
+  shutdown: graceful
 
 rocketmq:
   name-server: ${ROCKETMQ_NAME_SERVER:127.0.0.1:9876}
+  producer:
+    group: ${ROCKETMQ_PRODUCER_GROUP:galaxy-order-producer}
 
 services:
   product:
-    url: http://localhost:8082
+    url: ${SERVICES_PRODUCT_URL:http://localhost:8082}
   stock:
-    url: http://localhost:8083
+    url: ${SERVICES_STOCK_URL:http://localhost:8083}
 
 galaxy:
   order:
-    messaging-backend: local
-    store-backend: local
+    messaging-backend: ${GALAXY_ORDER_MESSAGING_BACKEND:local}
+    store-backend: ${GALAXY_ORDER_STORE_BACKEND:local}
     rocketmq:
-      topic: galaxy-order-submitted
-      consumer-group: galaxy-order-consumer
+      topic: ${GALAXY_ORDER_ROCKETMQ_TOPIC:galaxy-order-submitted}
+      consumer-group: ${GALAXY_ORDER_ROCKETMQ_CONSUMER_GROUP:galaxy-order-consumer}
     sharding:
-      shard-count: 2
-      table-shards: 4
+      shard-count: ${GALAXY_ORDER_SHARD_COUNT:2}
+      table-shards: ${GALAXY_ORDER_TABLE_SHARDS:4}
       shards:
         - url: ${ORDER_SHARD_0_URL:jdbc:mysql://127.0.0.1:3306/galaxy_order_0?useSSL=false&serverTimezone=UTC}
           username: ${ORDER_SHARD_0_USERNAME:root}
@@ -33,7 +45,16 @@ galaxy:
           password: ${ORDER_SHARD_1_PASSWORD:root}
 
 management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus

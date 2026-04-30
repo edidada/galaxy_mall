@@ -254,3 +254,17 @@ java -jar galaxy_mall-gateway/target/galaxy_mall-gateway-1.0-SNAPSHOT-exec.jar
 4. `MySQL/TiDB` 真实分片建表、路由规则和补偿任务
 5. `Sentinel` 限流熔断
 6. `OpenTelemetry` 链路追踪
+
+## 这轮补充的交付文档
+
+- API 文档：
+  `[api.md](api.md)`
+- 生产部署说明：
+  `[production_deployment.md](production_deployment.md)`
+- UAT 测试说明：
+  `[uat_test.md](uat_test.md)`
+- UAT 冒烟脚本：
+  `[scripts/uat_smoke_test.sh](scripts/uat_smoke_test.sh)`
+- K8s 模板：
+  `[deploy/k8s/galaxy-mall-uat.yaml](deploy/k8s/galaxy-mall-uat.yaml)`
+  `[deploy/k8s/galaxy-mall-prod.yaml](deploy/k8s/galaxy-mall-prod.yaml)`

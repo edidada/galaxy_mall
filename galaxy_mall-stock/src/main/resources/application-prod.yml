@@ -1,0 +1,4 @@
+galaxy:
+  stock:
+    backend: ${GALAXY_STOCK_BACKEND:redis}
+    local-rate-limit: ${GALAXY_STOCK_LOCAL_RATE_LIMIT:100000}

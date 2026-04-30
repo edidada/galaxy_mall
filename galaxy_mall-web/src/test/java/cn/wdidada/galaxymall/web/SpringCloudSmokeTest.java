@@ -62,6 +62,7 @@ class SpringCloudSmokeTest {
                 "services.payment.url=http://localhost:19085",
                 "spring.cloud.gateway.filter.json-to-grpc.enabled=false",
                 "spring.autoconfigure.exclude=org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration"));
+        awaitServiceReady("http://localhost:19080/actuator/health/readiness");
     }
 
     @AfterAll
@@ -117,6 +118,18 @@ class SpringCloudSmokeTest {
 
     @Test
     void gatewayShouldCompleteMainFlow() throws Exception {
+        JsonNode healthNode = parse(REST_CLIENT.get()
+                .uri("/actuator/health/readiness")
+                .retrieve()
+                .body(String.class));
+        Assertions.assertEquals("UP", healthNode.get("status").asText());
+
+        String prometheusMetrics = REST_CLIENT.get()
+                .uri("/actuator/prometheus")
+                .retrieve()
+                .body(String.class);
+        Assertions.assertTrue(prometheusMetrics.contains("jvm_threads_live_threads"));
+
         JsonNode productNode = parse(REST_CLIENT.get()
                 .uri("/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1")
                 .retrieve()
@@ -192,15 +205,20 @@ class SpringCloudSmokeTest {
                   "clientIp": "10.0.3.1"
                 }
                 """;
-        REST_CLIENT.post().uri("/api/gateway/orders").contentType(MediaType.APPLICATION_JSON).body(queuedPayload).retrieve().body(String.class);
-        REST_CLIENT.post().uri("/api/gateway/orders").contentType(MediaType.APPLICATION_JSON).body(queuedPayload).retrieve().body(String.class);
-        REST_CLIENT.post().uri("/api/gateway/orders").contentType(MediaType.APPLICATION_JSON).body(queuedPayload).retrieve().body(String.class);
-        JsonNode queuedNode = parse(REST_CLIENT.post()
-                .uri("/api/gateway/orders")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(queuedPayload)
-                .retrieve()
-                .body(String.class));
+        JsonNode queuedNode = null;
+        for (int attempt = 0; attempt < 10; attempt++) {
+            JsonNode candidate = parse(REST_CLIENT.post()
+                    .uri("/api/gateway/orders")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(queuedPayload)
+                    .retrieve()
+                    .body(String.class));
+            if ("QUEUED".equals(candidate.get("data").get("status").asText())) {
+                queuedNode = candidate;
+                break;
+            }
+        }
+        Assertions.assertNotNull(queuedNode, "queue flow did not return QUEUED within retry budget");
         Assertions.assertTrue(queuedNode.get("success").asBoolean());
         Assertions.assertEquals("QUEUED", queuedNode.get("data").get("status").asText());
         String queueToken = queuedNode.get("data").get("queueToken").asText();
@@ -234,6 +252,9 @@ class SpringCloudSmokeTest {
         properties.add("server.port=" + port);
         properties.add("spring.main.lazy-initialization=false");
         properties.add("logging.level.root=ERROR");
+        if (REAL_INFRA) {
+            properties.add("spring.profiles.active=uat");
+        }
         if (!GatewayApplication.class.equals(applicationClass)) {
             properties.add("spring.cloud.gateway.enabled=false");
             properties.add("spring.cloud.gateway.filter.json-to-grpc.enabled=false");
@@ -268,7 +289,7 @@ class SpringCloudSmokeTest {
     private static String configLocation(Class<?> applicationClass) {
         try {
             Path classesDirectory = Path.of(applicationClass.getProtectionDomain().getCodeSource().getLocation().toURI());
-            return classesDirectory.resolve("application.yml").toUri().toString();
+            return classesDirectory.toUri().toString();
         }
         catch (URISyntaxException e) {
             throw new IllegalStateException("failed to resolve config location for " + applicationClass.getName(), e);
@@ -305,5 +326,22 @@ class SpringCloudSmokeTest {
         }
         Assertions.fail("order status did not reach " + expectedStatus + ": " + latest);
         return latest;
+    }
+
+    private static void awaitServiceReady(String url) throws Exception {
+        long deadline = System.currentTimeMillis() + 30000L;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                String body = RestClient.create().get().uri(url).retrieve().body(String.class);
+                if (body != null && body.contains("\"status\":\"UP\"")) {
+                    return;
+                }
+            }
+            catch (Exception ignored) {
+                // Wait until the service is fully ready before the actual smoke assertions start.
+            }
+            Thread.sleep(200L);
+        }
+        Assertions.fail("service not ready: " + url);
     }
 }

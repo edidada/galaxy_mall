@@ -1,0 +1,26 @@
+services:
+  user:
+    url: ${SERVICES_USER_URL:http://galaxy-mall-user:8081}
+  product:
+    url: ${SERVICES_PRODUCT_URL:http://galaxy-mall-product:8082}
+  stock:
+    url: ${SERVICES_STOCK_URL:http://galaxy-mall-stock:8083}
+  order:
+    url: ${SERVICES_ORDER_URL:http://galaxy-mall-order:8084}
+  payment:
+    url: ${SERVICES_PAYMENT_URL:http://galaxy-mall-payment:8085}
+
+galaxy:
+  gateway:
+    query:
+      token-capacity: ${GALAXY_GATEWAY_QUERY_TOKEN_CAPACITY:200000}
+      refill-per-second: ${GALAXY_GATEWAY_QUERY_REFILL_PER_SECOND:100000}
+    order:
+      token-capacity: ${GALAXY_GATEWAY_ORDER_TOKEN_CAPACITY:100000}
+      refill-per-second: ${GALAXY_GATEWAY_ORDER_REFILL_PER_SECOND:50000}
+      leaky-bucket-capacity: ${GALAXY_GATEWAY_ORDER_LEAKY_BUCKET_CAPACITY:30000}
+      leaky-bucket-per-second: ${GALAXY_GATEWAY_ORDER_LEAKY_BUCKET_PER_SECOND:20000}
+      user-window-limit: ${GALAXY_GATEWAY_USER_WINDOW_LIMIT:8}
+    waiting-room:
+      capacity: ${GALAXY_GATEWAY_WAITING_ROOM_CAPACITY:1000000}
+      release-per-second: ${GALAXY_GATEWAY_WAITING_ROOM_RELEASE_PER_SECOND:100000}

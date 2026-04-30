@@ -3,6 +3,8 @@ spring:
     name: galaxy-mall-gateway
   main:
     web-application-type: reactive
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   cloud:
     gateway:
       filter:
@@ -11,21 +13,49 @@ spring:
 
 server:
   port: 8080
+  shutdown: graceful
 
 services:
   user:
-    url: http://localhost:8081
+    url: ${SERVICES_USER_URL:http://localhost:8081}
   product:
-    url: http://localhost:8082
+    url: ${SERVICES_PRODUCT_URL:http://localhost:8082}
   stock:
-    url: http://localhost:8083
+    url: ${SERVICES_STOCK_URL:http://localhost:8083}
   order:
-    url: http://localhost:8084
+    url: ${SERVICES_ORDER_URL:http://localhost:8084}
   payment:
-    url: http://localhost:8085
+    url: ${SERVICES_PAYMENT_URL:http://localhost:8085}
+
+galaxy:
+  gateway:
+    query:
+      token-capacity: ${GALAXY_GATEWAY_QUERY_TOKEN_CAPACITY:10000}
+      refill-per-second: ${GALAXY_GATEWAY_QUERY_REFILL_PER_SECOND:5000}
+    order:
+      token-capacity: ${GALAXY_GATEWAY_ORDER_TOKEN_CAPACITY:5000}
+      refill-per-second: ${GALAXY_GATEWAY_ORDER_REFILL_PER_SECOND:2000}
+      leaky-bucket-capacity: ${GALAXY_GATEWAY_ORDER_LEAKY_BUCKET_CAPACITY:1500}
+      leaky-bucket-per-second: ${GALAXY_GATEWAY_ORDER_LEAKY_BUCKET_PER_SECOND:1000}
+      user-window-limit: ${GALAXY_GATEWAY_USER_WINDOW_LIMIT:3}
+    waiting-room:
+      capacity: ${GALAXY_GATEWAY_WAITING_ROOM_CAPACITY:1000000}
+      release-per-second: ${GALAXY_GATEWAY_WAITING_ROOM_RELEASE_PER_SECOND:100000}
+    http:
+      connect-timeout-ms: ${GALAXY_GATEWAY_HTTP_CONNECT_TIMEOUT_MS:1000}
+      read-timeout-ms: ${GALAXY_GATEWAY_HTTP_READ_TIMEOUT_MS:3000}
 
 management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus

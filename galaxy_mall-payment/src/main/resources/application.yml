@@ -1,16 +1,35 @@
 spring:
   application:
     name: galaxy-mall-payment
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: ${GALAXY_PAYMENT_FEIGN_CONNECT_TIMEOUT_MS:1000}
+            readTimeout: ${GALAXY_PAYMENT_FEIGN_READ_TIMEOUT_MS:3000}
 
 server:
   port: 8085
+  shutdown: graceful
 
 services:
   order:
-    url: http://localhost:8084
+    url: ${SERVICES_ORDER_URL:http://localhost:8084}
 
 management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus

@@ -1,0 +1,378 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: galaxy-mall-prod
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: galaxy-mall-prod-secrets
+  namespace: galaxy-mall-prod
+type: Opaque
+stringData:
+  REDIS_PASSWORD: "change-me"
+  ORDER_SHARD_0_PASSWORD: "change-me"
+  ORDER_SHARD_1_PASSWORD: "change-me"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: galaxy-mall-prod-config
+  namespace: galaxy-mall-prod
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  REDIS_HOST: "redis-prod.internal"
+  REDIS_PORT: "6379"
+  ROCKETMQ_NAME_SERVER: "rocketmq-namesrv-prod.internal:9876"
+  SERVICES_USER_URL: "http://galaxy-mall-user:8081"
+  SERVICES_PRODUCT_URL: "http://galaxy-mall-product:8082"
+  SERVICES_STOCK_URL: "http://galaxy-mall-stock:8083"
+  SERVICES_ORDER_URL: "http://galaxy-mall-order:8084"
+  SERVICES_PAYMENT_URL: "http://galaxy-mall-payment:8085"
+  GALAXY_GATEWAY_QUERY_TOKEN_CAPACITY: "200000"
+  GALAXY_GATEWAY_QUERY_REFILL_PER_SECOND: "100000"
+  GALAXY_GATEWAY_ORDER_TOKEN_CAPACITY: "100000"
+  GALAXY_GATEWAY_ORDER_REFILL_PER_SECOND: "50000"
+  GALAXY_GATEWAY_ORDER_LEAKY_BUCKET_CAPACITY: "30000"
+  GALAXY_GATEWAY_ORDER_LEAKY_BUCKET_PER_SECOND: "20000"
+  GALAXY_GATEWAY_WAITING_ROOM_CAPACITY: "1000000"
+  GALAXY_GATEWAY_WAITING_ROOM_RELEASE_PER_SECOND: "100000"
+  GALAXY_STOCK_BACKEND: "redis"
+  GALAXY_STOCK_LOCAL_RATE_LIMIT: "100000"
+  GALAXY_ORDER_MESSAGING_BACKEND: "rocketmq"
+  GALAXY_ORDER_STORE_BACKEND: "jdbc-sharded"
+  GALAXY_ORDER_ROCKETMQ_TOPIC: "galaxy-order-submitted"
+  GALAXY_ORDER_ROCKETMQ_CONSUMER_GROUP: "galaxy-order-consumer"
+  ROCKETMQ_PRODUCER_GROUP: "galaxy-order-producer"
+  ORDER_SHARD_0_URL: "jdbc:mysql://mysql-order-0.prod.svc.cluster.local:3306/galaxy_order_0?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8"
+  ORDER_SHARD_1_URL: "jdbc:mysql://mysql-order-1.prod.svc.cluster.local:3306/galaxy_order_1?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: galaxy-mall-gateway
+  namespace: galaxy-mall-prod
+spec:
+  replicas: 8
+  selector:
+    matchLabels:
+      app: galaxy-mall-gateway
+  template:
+    metadata:
+      labels:
+        app: galaxy-mall-gateway
+    spec:
+      containers:
+        - name: gateway
+          image: registry.example.com/galaxy-mall/gateway:prod
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: galaxy-mall-prod-config
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: galaxy-mall-gateway
+  namespace: galaxy-mall-prod
+spec:
+  selector:
+    app: galaxy-mall-gateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: galaxy-mall-gateway
+  namespace: galaxy-mall-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: galaxy-mall-gateway
+  minReplicas: 8
+  maxReplicas: 32
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: galaxy-mall-user
+  namespace: galaxy-mall-prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: galaxy-mall-user
+  template:
+    metadata:
+      labels:
+        app: galaxy-mall-user
+    spec:
+      containers:
+        - name: user
+          image: registry.example.com/galaxy-mall/user:prod
+          ports:
+            - containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: galaxy-mall-prod-config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8081
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: galaxy-mall-user
+  namespace: galaxy-mall-prod
+spec:
+  selector:
+    app: galaxy-mall-user
+  ports:
+    - port: 8081
+      targetPort: 8081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: galaxy-mall-product
+  namespace: galaxy-mall-prod
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: galaxy-mall-product
+  template:
+    metadata:
+      labels:
+        app: galaxy-mall-product
+    spec:
+      containers:
+        - name: product
+          image: registry.example.com/galaxy-mall/product:prod
+          ports:
+            - containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: galaxy-mall-prod-config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8082
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: galaxy-mall-product
+  namespace: galaxy-mall-prod
+spec:
+  selector:
+    app: galaxy-mall-product
+  ports:
+    - port: 8082
+      targetPort: 8082
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: galaxy-mall-stock
+  namespace: galaxy-mall-prod
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: galaxy-mall-stock
+  template:
+    metadata:
+      labels:
+        app: galaxy-mall-stock
+    spec:
+      containers:
+        - name: stock
+          image: registry.example.com/galaxy-mall/stock:prod
+          ports:
+            - containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: galaxy-mall-prod-config
+            - secretRef:
+                name: galaxy-mall-prod-secrets
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8083
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: galaxy-mall-stock
+  namespace: galaxy-mall-prod
+spec:
+  selector:
+    app: galaxy-mall-stock
+  ports:
+    - port: 8083
+      targetPort: 8083
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: galaxy-mall-stock
+  namespace: galaxy-mall-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: galaxy-mall-stock
+  minReplicas: 6
+  maxReplicas: 24
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: galaxy-mall-order
+  namespace: galaxy-mall-prod
+spec:
+  replicas: 6
+  selector:
+    matchLabels:
+      app: galaxy-mall-order
+  template:
+    metadata:
+      labels:
+        app: galaxy-mall-order
+    spec:
+      containers:
+        - name: order
+          image: registry.example.com/galaxy-mall/order:prod
+          ports:
+            - containerPort: 8084
+          envFrom:
+            - configMapRef:
+                name: galaxy-mall-prod-config
+            - secretRef:
+                name: galaxy-mall-prod-secrets
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "1Gi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8084
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: galaxy-mall-order
+  namespace: galaxy-mall-prod
+spec:
+  selector:
+    app: galaxy-mall-order
+  ports:
+    - port: 8084
+      targetPort: 8084
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: galaxy-mall-order
+  namespace: galaxy-mall-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: galaxy-mall-order
+  minReplicas: 6
+  maxReplicas: 24
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: galaxy-mall-payment
+  namespace: galaxy-mall-prod
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: galaxy-mall-payment
+  template:
+    metadata:
+      labels:
+        app: galaxy-mall-payment
+    spec:
+      containers:
+        - name: payment
+          image: registry.example.com/galaxy-mall/payment:prod
+          ports:
+            - containerPort: 8085
+          envFrom:
+            - configMapRef:
+                name: galaxy-mall-prod-config
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8085
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: galaxy-mall-payment
+  namespace: galaxy-mall-prod
+spec:
+  selector:
+    app: galaxy-mall-payment
+  ports:
+    - port: 8085
+      targetPort: 8085
