@@ -10,6 +10,7 @@ import cn.wdidada.galaxymall.message.InMemoryMessageBus;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import cn.wdidada.galaxymall.monitor.TraceLogger;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.List;
 import javax.sql.DataSource;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
@@ -199,5 +200,20 @@ public class OrderServiceApplication {
             OrderMessagePublisher orderMessagePublisher
     ) {
         return new CloudOrderService(orderStore, localBinlogRepository, metricsCollector, traceLogger, productClient, orderMessagePublisher);
+    }
+
+    @Bean(destroyMethod = "close")
+    OrderStockReleaseCompensationTask orderStockReleaseCompensationTask(
+            LocalBinlogRepository localBinlogRepository,
+            StockClient stockClient,
+            MetricsCollector metricsCollector,
+            @Value("${galaxy.order.compensation-interval-ms:1000}") long compensationIntervalMs
+    ) {
+        return new OrderStockReleaseCompensationTask(
+                localBinlogRepository,
+                stockClient,
+                metricsCollector,
+                Duration.ofMillis(compensationIntervalMs)
+        );
     }
 }

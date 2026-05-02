@@ -17,6 +17,7 @@ import cn.wdidada.galaxymall.db.LocalBinlogRepository;
 import cn.wdidada.galaxymall.db.OrderRepository;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import cn.wdidada.galaxymall.monitor.TraceLogger;
+import java.time.Duration;
 import org.junit.jupiter.api.Test;
 
 class OrderAsyncConsumerTest {
@@ -70,6 +71,24 @@ class OrderAsyncConsumerTest {
         assertTrue(binlog.snapshot().stream().anyMatch(event -> event.startsWith("ORDER_STOCK_RELEASE_RETRY|" + order.orderId())));
     }
 
+    @Test
+    void releaseCompensationTaskConsumesRetryEventAfterStockRecovery() {
+        LocalBinlogRepository binlog = new LocalBinlogRepository();
+        binlog.append("ORDER_STOCK_RELEASE_RETRY|order-release-retry|release-failed");
+        MetricsCollector metrics = new MetricsCollector();
+        try (OrderStockReleaseCompensationTask task = new OrderStockReleaseCompensationTask(
+                binlog,
+                stockClientReleaseOnlySuccess(),
+                metrics,
+                Duration.ofMinutes(1)
+        )) {
+            task.runOnce();
+        }
+
+        assertTrue(binlog.snapshot().isEmpty());
+        assertEquals(1L, metrics.counter("order.stock.release.compensation.success"));
+    }
+
     private static ProductClient productClientSuccess() {
         return productId -> ApiResponse.success(
                 "ok",
@@ -111,6 +130,25 @@ class OrderAsyncConsumerTest {
             @Override
             public ApiResponse<StockView> release(StockReleaseRequest request) {
                 return ApiResponse.failure("release-failed");
+            }
+        };
+    }
+
+    private static StockClient stockClientReleaseOnlySuccess() {
+        return new StockClient() {
+            @Override
+            public ApiResponse<StockView> reserve(StockDeductRequest request) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public ApiResponse<StockView> confirm(StockConfirmRequest request) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public ApiResponse<StockView> release(StockReleaseRequest request) {
+                return ApiResponse.success("released", new StockView(request.reservationId(), "sku-1", 1, 10, "RELEASED"));
             }
         };
     }

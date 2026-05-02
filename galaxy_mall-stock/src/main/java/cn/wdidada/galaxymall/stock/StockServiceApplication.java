@@ -3,6 +3,7 @@ package cn.wdidada.galaxymall.stock;
 import cn.wdidada.galaxymall.db.LocalBinlogRepository;
 import cn.wdidada.galaxymall.db.StockLedgerRepository;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
+import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -45,7 +46,7 @@ public class StockServiceApplication {
 
     @Bean
     @ConditionalOnProperty(name = "galaxy.stock.backend", havingValue = "in-memory", matchIfMissing = true)
-    StockBackend inMemoryStockBackend(
+    InMemoryStockBackend inMemoryStockBackend(
             StockLedgerRepository stockLedgerRepository,
             MetricsCollector metricsCollector,
             @Value("${galaxy.stock.local-rate-limit:10000}") int localRateLimit
@@ -55,7 +56,7 @@ public class StockServiceApplication {
 
     @Bean
     @ConditionalOnProperty(name = "galaxy.stock.backend", havingValue = "redis")
-    StockBackend redisLuaStockBackend(
+    RedisLuaStockBackend redisLuaStockBackend(
             StockLedgerRepository stockLedgerRepository,
             MetricsCollector metricsCollector,
             LocalBinlogRepository localBinlogRepository,
@@ -68,6 +69,22 @@ public class StockServiceApplication {
                 localBinlogRepository,
                 localRateLimit,
                 stringRedisTemplate
+        );
+    }
+
+    @Bean(destroyMethod = "close")
+    @ConditionalOnProperty(name = "galaxy.stock.backend", havingValue = "redis")
+    StockCompensationTask stockCompensationTask(
+            LocalBinlogRepository localBinlogRepository,
+            RedisLuaStockBackend redisLuaStockBackend,
+            MetricsCollector metricsCollector,
+            @Value("${galaxy.stock.compensation-interval-ms:1000}") long compensationIntervalMs
+    ) {
+        return new StockCompensationTask(
+                localBinlogRepository,
+                redisLuaStockBackend,
+                metricsCollector,
+                Duration.ofMillis(compensationIntervalMs)
         );
     }
 

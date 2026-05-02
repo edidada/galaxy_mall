@@ -165,6 +165,14 @@ public final class RedisLuaStockBackend implements StockBackend {
         return stockLedgerRepository.get(productId);
     }
 
+    boolean processCompensation(String eventType, String reservationId, String productId) {
+        return switch (eventType) {
+            case "stock-confirm-rollback-required" -> rollbackFailedConfirmReservation(reservationId, productId);
+            case "stock-confirm-redis-reconcile" -> reconcileConfirmedReservation(reservationId, productId);
+            default -> false;
+        };
+    }
+
     private ReservationSnapshot readReservation(String reservationId) {
         var entries = redisTemplate.opsForHash().entries(reservationKey(reservationId));
         if (entries.isEmpty()) {
@@ -187,6 +195,26 @@ public final class RedisLuaStockBackend implements StockBackend {
                         true
                 )
         );
+    }
+
+    private boolean rollbackFailedConfirmReservation(String reservationId, String productId) {
+        OperationResult<StockReservation> releaseResult = releaseReservation(reservationId, "compensation-retry");
+        if (releaseResult.success() || "reservation-not-found".equals(releaseResult.message())) {
+            reconcile(productId);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean reconcileConfirmedReservation(String reservationId, String productId) {
+        reconcile(productId);
+        try {
+            List result = redisTemplate.execute(confirmScript, List.of(reservationKey(reservationId)), productId);
+            long code = longAt(result, 0);
+            return code == 0L || code == 1L || code == 2L;
+        } catch (RuntimeException ex) {
+            return false;
+        }
     }
 
     private void recordCompensation(String event, String reservationId, String productId, String detail) {
