@@ -93,7 +93,7 @@
   - `rocketmq`：新增 `RocketMqOrderMessagePublisher`，并在订单服务里显式装配 `DefaultMQProducer + DefaultMQPushConsumer`
 - 订单存储新增双实现：
   - `local`：内存仓储
-  - `jdbc-sharded`：`JdbcShardedOrderStore`，按 `库分片 + 表分片` 路由订单
+  - `jdbc-sharded`：`JdbcShardedOrderStore`，按 `库分片 + 二次表分片` 路由订单
 - 库存服务拆成 `reserve / confirm / release` 三段接口，补了 `Redis Lua` 后端：
   - `in-memory`：本地预扣 + 本地限流
   - `redis`：`reserve_stock.lua / confirm_stock.lua / release_stock.lua`
@@ -105,6 +105,17 @@
 - 删除了旧的单 JVM 编排入口和过期的控制台自测入口
 - 删除了旧的 `GatewayFacade`、旧订单异步演示类等残留代码
 - 避免新旧两套主线同时存在，导致聚合构建污染
+
+## 这轮按 review_suggestions 落地的修复
+
+- 网关令牌桶从 `synchronized` 改成了 CAS 状态机，去掉单实例全局锁竞争
+- 用户维度窗口限流和库存本地限流都改成了原子窗口状态，修掉秒切换时的计数清零竞态
+- 等待室补了过期时间和后台清扫，`enter` / `canPass` 的容量判断与 ticket 写入现在在同一临界区内完成
+- 多级缓存补了后台过期清扫，并增加 singleflight `getOrLoad`，热点 key 过期时不会并发打穿数据库
+- 布隆过滤器改成 `AtomicLongArray` 位图，并使用 double-hashing，避免 `BitSet` 并发读写数据竞争
+- Redis 库存后端补了 `preload setIfAbsent`、预扣/确认/释放幂等处理，以及确认失败补偿日志
+- 订单异步消费者新增最大重试上限和补偿日志，确认失败后的释放失败会记录待重试事件
+- JDBC 分片订单库改成“库路由 + 二次表路由”，并显式禁用 `jdbc-sharded` 下的 `findAll` 全表扫描
 
 ## 当前服务端口
 
@@ -241,9 +252,11 @@ java -jar galaxy_mall-gateway/target/galaxy_mall-gateway-1.0-SNAPSHOT-exec.jar
 但它还不是完整的生产中间件接入版，当前仍然有这些边界：
 
 - 注册中心还没有接 `Nacos/Eureka`
+- 下游调用还没有接 `CircuitBreaker/TimeLimiter`，当前主要靠限流、异步化和补偿日志兜底
 - `Redis`、`RocketMQ`、分片订单库当前已经有代码路径和配置开关，但这次自测跑的是本地可回退实现，没有连真实外部中间件
 - `jdbc-sharded` 当前使用 `JdbcTemplate + H2(MySQL 模式)` 自测，生产落地还需要换成真实 `MySQL/TiDB/PolarDB-X`
 - 商品和用户服务当前仍是内存仓储，没有继续落到真实数据库
+- Micrometer 指标依赖已经接入，但延迟分布和业务 histogram 还没有完整打通到统一监控面板
 - Sentinel、链路追踪、配置中心还没接入
 
 如果继续往“生产版”推进，下一步应该优先做：

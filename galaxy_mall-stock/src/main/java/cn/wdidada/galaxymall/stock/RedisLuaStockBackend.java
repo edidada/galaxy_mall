@@ -2,9 +2,12 @@ package cn.wdidada.galaxymall.stock;
 
 import cn.wdidada.galaxymall.common.OperationResult;
 import cn.wdidada.galaxymall.common.domain.StockReservation;
+import cn.wdidada.galaxymall.db.LocalBinlogRepository;
 import cn.wdidada.galaxymall.db.StockLedgerRepository;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
@@ -13,20 +16,24 @@ public final class RedisLuaStockBackend implements StockBackend {
 
     private final StockLedgerRepository stockLedgerRepository;
     private final MetricsCollector metricsCollector;
+    private final LocalBinlogRepository compensationLog;
     private final LocalRateGuard localRateGuard;
     private final StringRedisTemplate redisTemplate;
     private final DefaultRedisScript<List> reserveScript;
     private final DefaultRedisScript<List> confirmScript;
     private final DefaultRedisScript<List> releaseScript;
+    private final Map<String, ReservationSnapshot> confirmedReservations = new ConcurrentHashMap<>();
 
     public RedisLuaStockBackend(
             StockLedgerRepository stockLedgerRepository,
             MetricsCollector metricsCollector,
+            LocalBinlogRepository compensationLog,
             int maxPerSecond,
             StringRedisTemplate redisTemplate
     ) {
         this.stockLedgerRepository = stockLedgerRepository;
         this.metricsCollector = metricsCollector;
+        this.compensationLog = compensationLog;
         this.localRateGuard = new LocalRateGuard(maxPerSecond);
         this.redisTemplate = redisTemplate;
         this.reserveScript = script("lua/reserve_stock.lua");
@@ -36,7 +43,7 @@ public final class RedisLuaStockBackend implements StockBackend {
 
     @Override
     public void preload(String productId) {
-        redisTemplate.opsForValue().set(stockKey(productId), String.valueOf(stockLedgerRepository.get(productId)));
+        redisTemplate.opsForValue().setIfAbsent(stockKey(productId), String.valueOf(stockLedgerRepository.get(productId)));
     }
 
     @Override
@@ -59,6 +66,9 @@ public final class RedisLuaStockBackend implements StockBackend {
         if (code == 2L) {
             return OperationResult.failure("stock-key-missing");
         }
+        if (code == 3L) {
+            return OperationResult.failure("reservation-already-released");
+        }
         metricsCollector.increment("stock.redis.reserve.success");
         return OperationResult.success(
                 "stock-reserved",
@@ -68,26 +78,61 @@ public final class RedisLuaStockBackend implements StockBackend {
 
     @Override
     public OperationResult<StockReservation> confirm(String reservationId) {
+        ReservationSnapshot alreadyConfirmed = confirmedReservations.get(reservationId);
+        if (alreadyConfirmed != null) {
+            return confirmedResult("db-confirmed-idempotent", reservationId, alreadyConfirmed);
+        }
         ReservationSnapshot snapshot = readReservation(reservationId);
         if (snapshot == null) {
             return OperationResult.failure("reservation-not-found");
         }
         boolean success = stockLedgerRepository.decreaseWithLock(snapshot.productId(), snapshot.quantity());
         if (!success) {
-            release(reservationId, "db-confirm-failed");
+            OperationResult<StockReservation> rollback = releaseReservation(reservationId, "db-confirm-failed");
+            if (!rollback.success()) {
+                recordCompensation("stock-confirm-rollback-required", reservationId, snapshot.productId(), rollback.message());
+                metricsCollector.increment("stock.confirm.rollback.required");
+                return OperationResult.failure("db-confirm-failed-compensation-required");
+            }
             metricsCollector.increment("stock.db.confirm.fail");
             return OperationResult.failure("db-confirm-failed");
         }
-        redisTemplate.execute(confirmScript, List.of(reservationKey(reservationId)), snapshot.productId());
+        confirmedReservations.put(reservationId, snapshot);
+        try {
+            List result = redisTemplate.execute(confirmScript, List.of(reservationKey(reservationId)), snapshot.productId());
+            long code = longAt(result, 0);
+            if (code == 1L || code == 2L) {
+                recordCompensation("stock-confirm-redis-reconcile", reservationId, snapshot.productId(), "confirm-script-code-" + code);
+                metricsCollector.increment("stock.confirm.redis.reconcile.required");
+            }
+        } catch (RuntimeException ex) {
+            recordCompensation("stock-confirm-redis-reconcile", reservationId, snapshot.productId(), ex.getMessage());
+            metricsCollector.increment("stock.confirm.redis.reconcile.required");
+        }
         metricsCollector.increment("stock.db.confirm.success");
-        return OperationResult.success(
-                "db-confirmed",
-                new StockReservation(reservationId, snapshot.productId(), snapshot.quantity(), stockLedgerRepository.get(snapshot.productId()), true)
-        );
+        return confirmedResult("db-confirmed", reservationId, snapshot);
     }
 
     @Override
     public OperationResult<StockReservation> release(String reservationId, String reason) {
+        ReservationSnapshot alreadyConfirmed = confirmedReservations.get(reservationId);
+        if (alreadyConfirmed != null) {
+            metricsCollector.increment("stock.release.skipped.confirmed");
+            return OperationResult.success(
+                    "reservation-release-skipped:" + reason,
+                    new StockReservation(
+                            reservationId,
+                            alreadyConfirmed.productId(),
+                            alreadyConfirmed.quantity(),
+                            redisStock(alreadyConfirmed.productId()),
+                            true
+                    )
+            );
+        }
+        return releaseReservation(reservationId, reason);
+    }
+
+    private OperationResult<StockReservation> releaseReservation(String reservationId, String reason) {
         ReservationSnapshot snapshot = readReservation(reservationId);
         if (snapshot == null) {
             return OperationResult.failure("reservation-not-found");
@@ -129,6 +174,27 @@ public final class RedisLuaStockBackend implements StockBackend {
                 String.valueOf(entries.get("productId")),
                 Integer.parseInt(String.valueOf(entries.get("quantity")))
         );
+    }
+
+    private OperationResult<StockReservation> confirmedResult(String message, String reservationId, ReservationSnapshot snapshot) {
+        return OperationResult.success(
+                message,
+                new StockReservation(
+                        reservationId,
+                        snapshot.productId(),
+                        snapshot.quantity(),
+                        stockLedgerRepository.get(snapshot.productId()),
+                        true
+                )
+        );
+    }
+
+    private void recordCompensation(String event, String reservationId, String productId, String detail) {
+        compensationLog.append("STOCK_COMPENSATION|" + event + "|" + reservationId + "|" + productId + "|" + safe(detail));
+    }
+
+    private String safe(String value) {
+        return value == null ? "unknown" : value.replace('|', '/');
     }
 
     private static DefaultRedisScript<List> script(String path) {

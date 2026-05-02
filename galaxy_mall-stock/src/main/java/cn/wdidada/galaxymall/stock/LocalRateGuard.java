@@ -1,25 +1,37 @@
 package cn.wdidada.galaxymall.stock;
 
-import java.time.Instant;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongSupplier;
 
 public final class LocalRateGuard {
 
     private final int maxPerSecond;
-    private final AtomicLong secondWindow = new AtomicLong(Instant.now().getEpochSecond());
-    private final AtomicInteger counter = new AtomicInteger();
+    private final LongSupplier currentEpochSecond;
+    private final AtomicReference<WindowState> state;
 
     public LocalRateGuard(int maxPerSecond) {
+        this(maxPerSecond, () -> System.currentTimeMillis() / 1000L);
+    }
+
+    LocalRateGuard(int maxPerSecond, LongSupplier currentEpochSecond) {
         this.maxPerSecond = maxPerSecond;
+        this.currentEpochSecond = currentEpochSecond;
+        this.state = new AtomicReference<>(new WindowState(currentEpochSecond.getAsLong(), 0));
     }
 
     public boolean tryAcquire() {
-        long currentSecond = Instant.now().getEpochSecond();
-        long observed = secondWindow.get();
-        if (observed != currentSecond && secondWindow.compareAndSet(observed, currentSecond)) {
-            counter.set(0);
+        long currentSecond = currentEpochSecond.getAsLong();
+        while (true) {
+            WindowState current = state.get();
+            WindowState next = current.second() == currentSecond
+                    ? new WindowState(currentSecond, current.counter() + 1)
+                    : new WindowState(currentSecond, 1);
+            if (state.compareAndSet(current, next)) {
+                return next.counter() <= maxPerSecond;
+            }
         }
-        return counter.incrementAndGet() <= maxPerSecond;
+    }
+
+    private record WindowState(long second, int counter) {
     }
 }

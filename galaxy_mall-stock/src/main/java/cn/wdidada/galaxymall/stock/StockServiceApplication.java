@@ -1,5 +1,6 @@
 package cn.wdidada.galaxymall.stock;
 
+import cn.wdidada.galaxymall.db.LocalBinlogRepository;
 import cn.wdidada.galaxymall.db.StockLedgerRepository;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +30,11 @@ public class StockServiceApplication {
     }
 
     @Bean
+    LocalBinlogRepository localBinlogRepository() {
+        return new LocalBinlogRepository();
+    }
+
+    @Bean
     StockLedgerRepository stockLedgerRepository() {
         StockLedgerRepository repository = new StockLedgerRepository();
         repository.seed("sku-iphone", 10);
@@ -52,10 +58,17 @@ public class StockServiceApplication {
     StockBackend redisLuaStockBackend(
             StockLedgerRepository stockLedgerRepository,
             MetricsCollector metricsCollector,
+            LocalBinlogRepository localBinlogRepository,
             StringRedisTemplate stringRedisTemplate,
             @Value("${galaxy.stock.local-rate-limit:10000}") int localRateLimit
     ) {
-        return new RedisLuaStockBackend(stockLedgerRepository, metricsCollector, localRateLimit, stringRedisTemplate);
+        return new RedisLuaStockBackend(
+                stockLedgerRepository,
+                metricsCollector,
+                localBinlogRepository,
+                localRateLimit,
+                stringRedisTemplate
+        );
     }
 
     @Bean

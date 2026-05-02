@@ -7,12 +7,14 @@
 | 流量削峰 | 网关限流参数全部外置到 `galaxy.gateway.*`，支持令牌桶、漏桶、用户窗口限流、等待室容量与放行速率 |
 | 读路径 | 商品服务支持静态页输出，网关和商品接口可前置 CDN / Nginx 缓存 |
 | 写路径异步化 | 订单服务默认支持 `local` / `rocketmq` 两套消息后端，订单提交后异步消费库存链路 |
-| 库存扣减 | 库存服务支持 `in-memory` / `redis` 两套后端，`redis` 走 Lua 预扣、确认、回补 |
-| 数据库抗压 | 订单服务支持 `jdbc-sharded`，按 `库分片 + 表分片` 路由，分片参数外置 |
+| 库存扣减 | 库存服务支持 `in-memory` / `redis` 两套后端，`redis` 走 Lua 预扣、确认、回补，并补了确认补偿日志与接口幂等兜底 |
+| 数据库抗压 | 订单服务支持 `jdbc-sharded`，按 `库分片 + 二次表分片` 路由，分片参数外置 |
 | 可观测性 | 所有核心服务暴露 `health / info / prometheus`，支持 K8s liveness / readiness probe |
 | 环境化配置 | 已补 `application-uat.yml`、`application-prod.yml`，可直接按 profile 启动 |
 
 需要明确：`100w+ TPS` 不是靠单个 JVM 配置项实现，而是靠单元化、多副本、CDN 静态化、Redis/RocketMQ/MySQL 分片、机房容量规划共同实现。当前代码已经把这些链路的配置入口补齐，但生产指标成立的前提仍然是多实例部署和压测验收。
+
+另一个需要明确的边界：`jdbc-sharded` 实现已经主动禁用 `findAll()` 全量扫描，生产排障和对账必须走分页、游标或分片维度查询，不能再依赖单接口全拉。
 
 ## 2. 推荐生产拓扑
 
@@ -131,8 +133,8 @@ Nginx 模板已提供：
 建议至少监控：
 
 - `gateway`：QPS、限流数、等待室人数、5xx、P99
-- `order`：提交数、MQ 堆积、消费重试、订单状态分布
-- `stock`：Lua 失败数、预扣成功率、回补数、库存偏差
+- `order`：提交数、MQ 堆积、消费重试、死信数、订单状态分布
+- `stock`：Lua 失败数、预扣成功率、回补数、库存偏差、补偿日志积压
 - `payment`：支付成功率、回调延迟
 - `mysql`：慢 SQL、连接池、分片热点
 - `rocketmq`：消费延迟、重试、DLQ
@@ -151,4 +153,5 @@ Nginx 模板已提供：
 - 真 Redis / 真 RocketMQ / 真 MySQL 分片联调通过
 - 压测达到目标副本下的预估峰值余量
 - `health/readiness/prometheus` 已接入监控平台
+- 已验证等待室过期回收、缓存 singleflight、库存确认补偿日志在压测和故障注入场景下正常工作
 - 已完成灰度发布、回滚演练、Redis/RocketMQ/MySQL 故障演练

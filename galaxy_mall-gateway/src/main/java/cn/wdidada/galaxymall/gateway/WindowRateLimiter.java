@@ -1,29 +1,42 @@
 package cn.wdidada.galaxymall.gateway;
 
-import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.LongSupplier;
 
 public final class WindowRateLimiter {
 
     private final int threshold;
-    private final Map<String, AtomicLong> seconds = new ConcurrentHashMap<>();
-    private final Map<String, AtomicInteger> counters = new ConcurrentHashMap<>();
+    private final LongSupplier currentEpochSecond;
+    private final Map<String, AtomicReference<WindowState>> windows = new ConcurrentHashMap<>();
 
     public WindowRateLimiter(int threshold) {
+        this(threshold, () -> System.currentTimeMillis() / 1000L);
+    }
+
+    WindowRateLimiter(int threshold, LongSupplier currentEpochSecond) {
         this.threshold = threshold;
+        this.currentEpochSecond = currentEpochSecond;
     }
 
     public boolean allow(String key) {
-        long now = Instant.now().getEpochSecond();
-        AtomicLong second = seconds.computeIfAbsent(key, ignored -> new AtomicLong(now));
-        AtomicInteger counter = counters.computeIfAbsent(key, ignored -> new AtomicInteger());
-        long previous = second.get();
-        if (previous != now && second.compareAndSet(previous, now)) {
-            counter.set(0);
+        long now = currentEpochSecond.getAsLong();
+        AtomicReference<WindowState> window = windows.computeIfAbsent(
+                key,
+                ignored -> new AtomicReference<>(new WindowState(now, 0))
+        );
+        while (true) {
+            WindowState current = window.get();
+            WindowState next = current.second() == now
+                    ? new WindowState(now, current.counter() + 1)
+                    : new WindowState(now, 1);
+            if (window.compareAndSet(current, next)) {
+                return next.counter() <= threshold;
+            }
         }
-        return counter.incrementAndGet() <= threshold;
+    }
+
+    private record WindowState(long second, int counter) {
     }
 }

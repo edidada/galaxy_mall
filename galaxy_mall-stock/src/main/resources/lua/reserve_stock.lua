@@ -8,6 +8,17 @@ if not current then
   return {2, -1}
 end
 
+if redis.call('EXISTS', reservationKey) == 1 then
+  local status = redis.call('HGET', reservationKey, 'status')
+  local remaining = tonumber(redis.call('HGET', reservationKey, 'remainingStock')) or tonumber(current)
+  if status == 'RESERVED' or status == 'CONFIRMED' then
+    return {0, remaining}
+  end
+  if status == 'RELEASED' then
+    return {3, tonumber(current)}
+  end
+end
+
 current = tonumber(current)
 if current < quantity then
   return {1, current}

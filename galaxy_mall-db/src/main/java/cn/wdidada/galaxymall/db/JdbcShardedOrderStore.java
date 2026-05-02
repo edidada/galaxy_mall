@@ -5,8 +5,6 @@ import cn.wdidada.galaxymall.common.domain.OrderStatus;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import javax.sql.DataSource;
@@ -76,14 +74,7 @@ public final class JdbcShardedOrderStore implements OrderStore {
 
     @Override
     public List<Order> findAll() {
-        List<Order> orders = new ArrayList<>();
-        for (int ds = 0; ds < shards.size(); ds++) {
-            JdbcTemplate jdbcTemplate = shards.get(ds);
-            for (int table = 0; table < tableShards; table++) {
-                orders.addAll(jdbcTemplate.query("select * from t_order_" + table, new OrderRowMapper()));
-            }
-        }
-        return orders;
+        throw new UnsupportedOperationException("jdbc-sharded findAll is disabled; use paged or shard-scoped queries");
     }
 
     private void initializeSchema() {
@@ -107,8 +98,9 @@ public final class JdbcShardedOrderStore implements OrderStore {
     }
 
     private Target target(String orderId) {
-        int shard = Math.floorMod(orderId.hashCode(), shards.size());
-        int table = Math.floorMod(orderId.hashCode(), tableShards);
+        int hash = orderId.hashCode();
+        int shard = Math.floorMod(hash, shards.size());
+        int table = Math.floorMod(hash / Math.max(1, shards.size()), tableShards);
         return new Target(shards.get(shard), "t_order_" + table);
     }
 

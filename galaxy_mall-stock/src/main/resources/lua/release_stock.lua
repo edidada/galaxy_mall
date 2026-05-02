@@ -10,9 +10,14 @@ if status == 'RELEASED' then
   local current = tonumber(redis.call('GET', stockKey))
   return {0, current}
 end
+if status == 'CONFIRMED' then
+  local current = tonumber(redis.call('GET', stockKey))
+  return {0, current}
+end
 
 local quantity = tonumber(redis.call('HGET', reservationKey, 'quantity'))
 redis.call('INCRBY', stockKey, quantity)
-redis.call('HSET', reservationKey, 'status', 'RELEASED')
 local current = tonumber(redis.call('GET', stockKey))
+redis.call('HSET', reservationKey, 'status', 'RELEASED')
+redis.call('HSET', reservationKey, 'remainingStock', tostring(current))
 return {0, current}

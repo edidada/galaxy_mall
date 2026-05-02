@@ -36,11 +36,6 @@ public final class ProductCatalogService {
     }
 
     public OperationResult<Product> queryProduct(String productId) {
-        Optional<Product> cached = cache.get(productId);
-        if (cached.isPresent()) {
-            return OperationResult.success("cache-hit", cached.get());
-        }
-
         if (!bloomFilterGuard.mightContain(productId)) {
             return OperationResult.failure("product-filtered-by-bloom");
         }
@@ -49,15 +44,12 @@ public final class ProductCatalogService {
             return OperationResult.failure("product-empty-cache-hit");
         }
 
-        return productRepository.findById(productId)
-                .map(product -> {
-                    cache.put(productId, product);
-                    return OperationResult.success("db-hit", product);
-                })
-                .orElseGet(() -> {
-                    nullValueCache.put(productId, Boolean.TRUE);
-                    return OperationResult.failure("product-not-found");
-                });
+        Optional<Product> cached = cache.getOrLoad(productId, () -> productRepository.findById(productId));
+        if (cached.isPresent()) {
+            return OperationResult.success("cache-or-db-hit", cached.get());
+        }
+        nullValueCache.put(productId, Boolean.TRUE);
+        return OperationResult.failure("product-not-found");
     }
 
     public String renderStaticPage(String productId) {
