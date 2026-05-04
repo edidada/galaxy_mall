@@ -8,6 +8,6 @@ galaxy:
 
 services:
   product:
-    url: ${SERVICES_PRODUCT_URL:http://galaxy-mall-product:8082}
+    url: ${SERVICES_PRODUCT_URL:http://galaxy-mall-product:8080}
   stock:
-    url: ${SERVICES_STOCK_URL:http://galaxy-mall-stock:8083}
+    url: ${SERVICES_STOCK_URL:http://galaxy-mall-stock:8080}

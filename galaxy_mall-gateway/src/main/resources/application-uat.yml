@@ -1,14 +1,14 @@
 services:
   user:
-    url: ${SERVICES_USER_URL:http://galaxy-mall-user:8081}
+    url: ${SERVICES_USER_URL:http://galaxy-mall-user:8080}
   product:
-    url: ${SERVICES_PRODUCT_URL:http://galaxy-mall-product:8082}
+    url: ${SERVICES_PRODUCT_URL:http://galaxy-mall-product:8080}
   stock:
-    url: ${SERVICES_STOCK_URL:http://galaxy-mall-stock:8083}
+    url: ${SERVICES_STOCK_URL:http://galaxy-mall-stock:8080}
   order:
-    url: ${SERVICES_ORDER_URL:http://galaxy-mall-order:8084}
+    url: ${SERVICES_ORDER_URL:http://galaxy-mall-order:8080}
   payment:
-    url: ${SERVICES_PAYMENT_URL:http://galaxy-mall-payment:8085}
+    url: ${SERVICES_PAYMENT_URL:http://galaxy-mall-payment:8080}
 
 galaxy:
   gateway:
