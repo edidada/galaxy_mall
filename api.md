@@ -1,5 +1,16 @@
 # API 文档
-
+http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1
+{
+"success": true,
+"message": "cache-or-db-hit",
+"data": {
+    "productId": "sku-iphone",
+    "name": "iPhone Galaxy Edition",
+    "priceCent": 899900,
+    "seckillProduct": false,
+    "staticPage": "<html><body><h1>iPhone Galaxy Edition</h1><p>static page</p></body></html>"
+    }
+}
 本文档整理当前工程实际暴露的 HTTP Server API，包括：
 
 - 网关编排接口
