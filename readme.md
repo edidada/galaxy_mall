@@ -1,111 +1,20 @@
 # galaxy_mall
+服务器配置很强（62G 内存，48 核 CPU）
 好的！那我们直接修改并运行这两个测试脚本。首先让我们给脚本添加执行权限，然后运行它们：
 
-
-
-
-        
-            
-toolName: todo_write
-            
-status: success
-          
-Todos updated: 3 items
-          
-
-        
-            
-toolName: run_command
-            
-status: success
-          
 command: chmod +x /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_get.sh && chmod +x /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_post.sh undefined
           
 现在让我们运行 GET 测试脚本：
-
-
-
-
-        
-            
-toolName: todo_write
-            
-status: success
-          
-Todos updated: 3 items
-          
-
-        
-            
-toolName: run_command
-            
-status: success
-          
-command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_get.sh undefined
-          
-让我们先测试一下服务是否可以正常访问：
-
-
-
-
-
-        
-            
-toolName: run_command
-            
-status: success
-          
 command: curl --noproxy "*" --connect-timeout 5 -s -w "%{http_code}" "http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1" undefined
           
 太好了！服务可以正常访问！让我们用更小规模的并发数重新运行测试，这样更快看到结果：
-
-
-
-
-        
-            
-toolName: todo_write
-            
-status: success
-          
-Todos updated: 3 items
-          
-
-        
-            
-toolName: run_command
-            
-status: success
-          
 command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_get.sh "http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1" 1000 50 undefined
           
 好的！GET 请求测试完成！现在让我们运行 POST 请求的测试：
-
-
-
-
-
-        
-            
-toolName: run_command
-            
-status: success
-          
 command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_post.sh "http://192.168.31.171:30897/api/gateway/orders" 500 50 undefined
           
-
-        
-            
-toolName: todo_write
-            
-status: success
-          
-Todos updated: 3 items
-          
 ## 测试结果总结
-
 我们成功运行了两个 TPS 测试脚本，以下是初步结论：
-
 ### GET 请求测试（查询商品）
 - **总请求数**：1000
 - **成功请求数**：1000
