@@ -42,3 +42,4 @@ build/
 
 server/venv
 .m2repo
+deploy/docker/output/*.tar
