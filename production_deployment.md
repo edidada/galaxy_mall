@@ -1,5 +1,25 @@
 # 生产部署说明
 
+```dockerfile
+# 与仓库 deploy/docker/Dockerfile.exec-jar 保持一致
+FROM eclipse-temurin:17-jre
+
+ARG JAR_FILE
+ARG APP_PORT=8080
+
+ENV APP_PORT=${APP_PORT}
+ENV JAVA_OPTS=""
+
+WORKDIR /app
+COPY ${JAR_FILE} app.jar
+
+EXPOSE ${APP_PORT}
+
+ENTRYPOINT ["sh","-c","exec java -XX:+UseContainerSupport -XX:MaxRAMPercentage=75 ${JAVA_OPTS:-} -jar /app/app.jar"]
+```
+
+说明：当前仓库按服务模块分别打包并构建镜像，`JAR_FILE` 需要传入具体产物路径，例如 `galaxy_mall-gateway/target/galaxy_mall-gateway-1.0-SNAPSHOT-exec.jar`。
+
 ## 1. 当前代码已经补上的生产化能力
 
 | 维度 | 当前代码落地 |
