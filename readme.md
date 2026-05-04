@@ -1,4 +1,22 @@
 # galaxy_mall
+
+• galaxy_mall-seckill 已经从空模块补成可运行的 Spring Boot 秒杀服务了，现在它不再只是 Maven 子模块，占位而已，而是可以像其他应用服务一样打包镜像。
+
+本次改动
+
+- 在 galaxy_mall-seckill/src/main/java/cn/wdidada/galaxymall/seckill/SeckillService.java:25 实现了秒杀主链路：商品本地缓存校验、同用户同商品幂等复用、全局/用户/IP
+  限流、有限队列异步受理、后台提交订单、轮询订单状态并回写秒杀结果。
+- 在 galaxy_mall-seckill/src/main/java/cn/wdidada/galaxymall/seckill/SeckillServiceApplication.java:14 补了应用入口、Feign 客户端和可调性能参数；pom.xml 也补齐了
+  web/openfeign/actuator/test 依赖和 spring-boot-maven-plugin，现在这个模块具备独立部署条件。
+- 新增了公共 API galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/api/SeckillRequest.java:7 和 galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/
+  common/api/SeckillView.java:3，并扩展了 galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/IdGenerator.java:13 生成秒杀请求号。
+- 加了单测 galaxy_mall-seckill/src/test/java/cn/wdidada/galaxymall/seckill/SeckillServiceTest.java:23，覆盖异步成功、重复请求复用、非秒杀商品拒绝、按用户限流。
+
+验证
+
+- 已执行 mvn -q test -pl galaxy_mall-seckill -am
+- 结果：Tests run: 3, Failures: 0, Errors: 0, Skipped: 0
+- 
 服务器配置很强（62G 内存，48 核 CPU）
 好的！那我们直接修改并运行这两个测试脚本。首先让我们给脚本添加执行权限，然后运行它们：
 

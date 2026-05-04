@@ -1,0 +1,48 @@
+spring:
+  application:
+    name: galaxy-mall-seckill
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            connectTimeout: ${GALAXY_SECKILL_FEIGN_CONNECT_TIMEOUT_MS:500}
+            readTimeout: ${GALAXY_SECKILL_FEIGN_READ_TIMEOUT_MS:1000}
+
+server:
+  port: 8086
+  shutdown: graceful
+
+services:
+  product:
+    url: ${SERVICES_PRODUCT_URL:http://localhost:8082}
+  order:
+    url: ${SERVICES_ORDER_URL:http://localhost:8084}
+
+galaxy:
+  seckill:
+    global-rate-limit: ${GALAXY_SECKILL_GLOBAL_RATE_LIMIT:20000}
+    user-rate-limit: ${GALAXY_SECKILL_USER_RATE_LIMIT:1}
+    ip-rate-limit: ${GALAXY_SECKILL_IP_RATE_LIMIT:10}
+    worker-count: ${GALAXY_SECKILL_WORKER_COUNT:8}
+    queue-capacity: ${GALAXY_SECKILL_QUEUE_CAPACITY:4096}
+    refresh-interval-ms: ${GALAXY_SECKILL_REFRESH_INTERVAL_MS:100}
+    product-cache-ttl-ms: ${GALAXY_SECKILL_PRODUCT_CACHE_TTL_MS:30000}
+    terminal-retention-ms: ${GALAXY_SECKILL_TERMINAL_RETENTION_MS:300000}
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
