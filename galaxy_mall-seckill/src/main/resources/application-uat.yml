@@ -1,0 +1,6 @@
+galaxy:
+  seckill:
+    global-rate-limit: ${GALAXY_SECKILL_GLOBAL_RATE_LIMIT:30000}
+    worker-count: ${GALAXY_SECKILL_WORKER_COUNT:12}
+    queue-capacity: ${GALAXY_SECKILL_QUEUE_CAPACITY:8192}
+    refresh-interval-ms: ${GALAXY_SECKILL_REFRESH_INTERVAL_MS:80}

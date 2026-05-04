@@ -11,6 +11,14 @@ public final class IdGenerator {
     }
 
     public static String nextOrderId() {
-        return "ORD-" + Instant.now().toEpochMilli() + "-" + SEQUENCE.incrementAndGet();
+        return nextBusinessId("ORD");
+    }
+
+    public static String nextSeckillRequestId() {
+        return nextBusinessId("SKQ");
+    }
+
+    public static String nextBusinessId(String prefix) {
+        return prefix + "-" + Instant.now().toEpochMilli() + "-" + SEQUENCE.incrementAndGet();
     }
 }
