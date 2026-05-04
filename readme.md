@@ -1,4 +1,144 @@
 # galaxy_mall
+好的！那我们直接修改并运行这两个测试脚本。首先让我们给脚本添加执行权限，然后运行它们：
+
+
+
+
+        
+            
+toolName: todo_write
+            
+status: success
+          
+Todos updated: 3 items
+          
+
+        
+            
+toolName: run_command
+            
+status: success
+          
+command: chmod +x /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_get.sh && chmod +x /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_post.sh undefined
+          
+现在让我们运行 GET 测试脚本：
+
+
+
+
+        
+            
+toolName: todo_write
+            
+status: success
+          
+Todos updated: 3 items
+          
+
+        
+            
+toolName: run_command
+            
+status: success
+          
+command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_get.sh undefined
+          
+让我们先测试一下服务是否可以正常访问：
+
+
+
+
+
+        
+            
+toolName: run_command
+            
+status: success
+          
+command: curl --noproxy "*" --connect-timeout 5 -s -w "%{http_code}" "http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1" undefined
+          
+太好了！服务可以正常访问！让我们用更小规模的并发数重新运行测试，这样更快看到结果：
+
+
+
+
+        
+            
+toolName: todo_write
+            
+status: success
+          
+Todos updated: 3 items
+          
+
+        
+            
+toolName: run_command
+            
+status: success
+          
+command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_get.sh "http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1" 1000 50 undefined
+          
+好的！GET 请求测试完成！现在让我们运行 POST 请求的测试：
+
+
+
+
+
+        
+            
+toolName: run_command
+            
+status: success
+          
+command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_post.sh "http://192.168.31.171:30897/api/gateway/orders" 500 50 undefined
+          
+
+        
+            
+toolName: todo_write
+            
+status: success
+          
+Todos updated: 3 items
+          
+## 测试结果总结
+
+我们成功运行了两个 TPS 测试脚本，以下是初步结论：
+
+### GET 请求测试（查询商品）
+- **总请求数**：1000
+- **成功请求数**：1000
+- **失败请求数**：0
+- **CURL 错误数**：0
+- **耗时**：26.9 秒
+- **TPS**：37.20
+
+### POST 请求测试（创建订单）
+- **总请求数**：500
+- **成功请求数**：500
+- **失败请求数**：0
+- **CURL 错误数**：0
+- **耗时**：13.4 秒
+- **TPS**：37.18
+
+## 重要说明
+
+正如你提到的，**使用 macOS 单机 + bash + curl 只能做小规模并发压测**，这个结果主要是用来验证服务是否正常工作，不能代表系统的真实性能上限。
+
+### 当前测试的局限性
+1. **单机瓶颈**：macOS 本机的网络、进程、文件描述符限制
+2. **curl 性能**：每个请求都是独立的 curl 进程，不是长连接
+3. **并发数较低**：测试只用了 50 并发，没有充分测试系统极限
+4. **k3s 集群配置**：当前还不清楚 k3s 集群的具体配置（副本数、资源限制等）
+
+### 要真正测试 100w+ TPS，需要：
+1. **多台压测机**：分布式发压
+2. **专业压测工具**：如 wrk、k6、JMeter、Locust
+3. **长连接**：复用连接减少开销
+4. **合理的集群配置**：足够的服务副本、资源限制、中间件支持
+
+当前测试验证了服务链路是正常工作的！
 
 基于 `design.md`，本仓库已经从单模块示例工程升级为 Spring Boot 3 + Spring Cloud 的 Maven 多模块微服务工程。当前实现重点不再只是“服务拆分”，而是把大促核心链路往“流量削峰、读静态化、写异步化、库存本地化”推进，并把 `Redis Lua`、`RocketMQ`、`Spring Cloud Gateway`、`JDBC 分片订单库` 这 4 条生产化路径补进了代码。
 
