@@ -2,6 +2,39 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
+  name: redis
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:alpine
+        ports:
+        - containerPort: 6379
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  labels:
+    app: redis
+spec:
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
   name: gateway
 spec:
   replicas: 1
@@ -145,6 +178,10 @@ spec:
           value: "http://product:8080"
         - name: SERVICES_ORDER_URL
           value: "http://order:8080"
+        - name: SPRING_DATA_REDIS_HOST
+          value: "redis"
+        - name: SPRING_DATA_REDIS_PORT
+          value: "6379"
         ports:
         - containerPort: 8080
 ---
@@ -180,6 +217,13 @@ spec:
       containers:
       - name: stock
         image: docker.io/galaxy-mall/stock:local
+        env:
+        - name: SERVER_PORT
+          value: "8080"
+        - name: REDIS_HOST
+          value: "redis"
+        - name: REDIS_PORT
+          value: "6379"
         ports:
         - containerPort: 8080
 ---
@@ -216,8 +260,20 @@ spec:
       - name: order
         image: docker.io/galaxy-mall/order:local
         env:
-        - name: PRODUCT_SERVICE_URL
+        - name: SERVICES_PRODUCT_URL
           value: "http://product:8080"
+        - name: SERVICES_STOCK_URL
+          value: "http://stock:8080"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: GALAXY_ORDER_MESSAGING_BACKEND
+          value: "local"
+        - name: GALAXY_ORDER_STORE_BACKEND
+          value: "local"
+        - name: SPRING_DATA_REDIS_HOST
+          value: "redis"
+        - name: SPRING_DATA_REDIS_PORT
+          value: "6379"
         ports:
         - containerPort: 8080
 ---
