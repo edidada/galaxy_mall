@@ -1,4 +1,40 @@
 # galaxy_mall
+
+这套监控在 192.168.31.171 上已经跑通，但不是你最开始那 3 个文件原样可用。
+我改了这几处并已推到 origin/k3s_uat_8080：
+
+- 25df782 Fix k3s monitoring manifests for default namespace
+- 36b0052 Add k3s HelmChart manifest for prometheus stack
+
+对应文件是：
+
+- dell_r630/deploy-services.yaml
+- dell_r630/galaxy-mall-service-monitor.yaml
+- dell_r630/values.yaml
+- dell_r630/kube-prometheus-stack-helmchart.yaml
+
+live 集群上的最终情况是：
+
+- 这台 k3s 的 Galaxy Mall 确实跑在 default namespace，所以我之前说 galaxy-mall-uat/prod 不适用于这台机。
+- ServiceMonitor 之前抓不到，是因为 Service 没有 metadata.labels.monitoring=galaxy-mall，端口也没有 name: http。这两处我已经改并 apply 了。
+- 远端 k3s 节点 拉不到 prometheus-community chart repo，所以 HelmChart 直接装会失败。我后来改成 本地渲染 kube-prometheus-stack，上传后在服务器 apply，并先单独装了
+  CRD。
+- Prometheus 和 Grafana 现在都起来了：
+  - Grafana: http://192.168.31.171:30300
+  - Prometheus: http://192.168.31.171:30090
+
+最关键的验证结果：
+
+- Prometheus 已经发现并抓取 galaxy-mall-service-monitor
+- gateway / user / product / order / payment 全部 health=up
+- stock 被发现了，但 health=down
+  原因不是监控配置错，而是 stock 服务本身在 CrashLoopBackOff
+- 另外 kube-state-metrics 仍是 ImagePullBackOff，原因是节点访问 registry.k8s.io 超时；这不影响 Galaxy Mall 应用指标采集
+
+所以最后一句话是：
+
+修正后能行得通，而且 live 已验证成功；原始 3 个文件不行，修正后的清单在这台服务器上已经把 Galaxy Mall 指标抓起来了。
+
 所以最终判断是：
 
 - prometheus-grafana-k3s.md：方向对，但现在没落地
