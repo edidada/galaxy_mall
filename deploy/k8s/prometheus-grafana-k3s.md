@@ -1,15 +1,15 @@
-# Prometheus + Grafana 在 k3s 中的部署方案
+# Prometheus Grafana在k3s中的部署方案
 
 ## 方案概述
-本方案使用 k3s 内置的 Helm 控制器，通过 Helm 部署 `kube-prometheus-stack`（包含 Prometheus、Grafana、Alertmanager、node-exporter 等组件）。
+本方案使用k3s内置的Helm控制器，通过Helm部署 `kube-prometheus-stack`（包含Prometheus、Grafana、Alertmanager、node-exporter等组件）。
 
 ## 前置条件
-- k3s 已正常运行
+- k3s已正常运行
 - 网络访问正常（能够拉取镜像）
-- 有 `kubectl` 访问权限
+- 有`kubectl`访问权限
 
-## 1. 配置 Helm（可选）
-k3s 自带 Helm，但你也可以安装本地 Helm 客户端方便使用：
+## 1.配置Helm（可选）
+k3s自带Helm，但你也可以安装本地Helm客户端方便使用：
 ```bash
 # 安装 Helm
 curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
@@ -18,7 +18,7 @@ curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 helm version
 ```
 
-## 2. 添加 Helm repo
+## 2. 添加Helm repo
 ```bash
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
@@ -36,7 +36,7 @@ prometheus:
     serviceMonitorNamespaceSelector: {}
 
 grafana:
-  adminPassword: "galaxy123"  # 修改为你自己的密码
+  adminPassword: "5Edidada"
   service:
     type: NodePort
     nodePort: 30300
@@ -73,7 +73,7 @@ kubectl get svc -n monitoring
 ### Grafana
 - 访问地址：`http://<k3s-node-ip>:30300`
 - 用户名：`admin`
-- 密码：你在 `values.yaml` 中配置的密码（默认 `galaxy123`）
+- 密码：你在 `values.yaml` 中配置的密码（默认 `5Edidada`）
 
 ### Prometheus
 ```bash
@@ -82,8 +82,8 @@ kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 909
 ```
 然后访问：`http://localhost:9090`
 
-## 6. 为 Galaxy Mall 服务配置 ServiceMonitor
-让 Prometheus 能够自动发现并抓取 Galaxy Mall 服务的指标：
+## 6. 为Galaxy Mall服务配置ServiceMonitor
+让Prometheus能够自动发现并抓取Galaxy Mall服务的指标：
 
 创建 `galaxy-mall-service-monitor.yaml`：
 
