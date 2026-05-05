@@ -54,7 +54,7 @@ prometheus-node-exporter:
 开始部署：
 ```bash
 # 创建命名空间
-kubectl create namespace monitoring
+sudo /usr/local/bin/k3s kubectl create namespace monitoring
 
 # 部署
 helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring -f values.yaml
@@ -63,10 +63,10 @@ helm install prometheus prometheus-community/kube-prometheus-stack -n monitoring
 ## 4. 验证部署
 ```bash
 # 查看所有 Pod 状态
-kubectl get pods -n monitoring
+sudo /usr/local/bin/k3s kubectl get pods -n monitoring
 
 # 查看 Service
-kubectl get svc -n monitoring
+sudo /usr/local/bin/k3s kubectl get svc -n monitoring
 ```
 
 ## 5. 访问服务
@@ -78,7 +78,7 @@ kubectl get svc -n monitoring
 ### Prometheus
 ```bash
 # 临时 port-forward
-kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
+sudo /usr/local/bin/k3s kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
 ```
 然后访问：`http://localhost:9090`
 
@@ -110,7 +110,7 @@ spec:
 
 应用：
 ```bash
-kubectl apply -f galaxy-mall-service-monitor.yaml
+sudo /usr/local/bin/k3s kubectl apply -f galaxy-mall-service-monitor.yaml
 ```
 
 ## 7. Grafana 常用 Dashboard
@@ -125,5 +125,5 @@ kubectl apply -f galaxy-mall-service-monitor.yaml
 如果需要删除 Prometheus + Grafana：
 ```bash
 helm uninstall prometheus -n monitoring
-kubectl delete namespace monitoring
+sudo /usr/local/bin/k3s kubectl delete namespace monitoring
 ```
