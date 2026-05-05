@@ -1,0 +1,115 @@
+pipeline {
+  agent {
+    kubernetes {
+      yaml """
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    jenkins: galaxy-mall
+spec:
+  serviceAccountName: jenkins
+  containers:
+    - name: maven
+      image: maven:3.9.9-eclipse-temurin-17
+      command: ['cat']
+      tty: true
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:v1.23.2-debug
+      command: ['cat']
+      tty: true
+    - name: kubectl
+      image: bitnami/kubectl:1.28
+      command: ['cat']
+      tty: true
+"""
+    }
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+        script {
+          env.SHORT_COMMIT = sh(script: "git rev-parse --short=7 HEAD", returnStdout: true).trim()
+          env.IMAGE_TAG = "${env.BUILD_NUMBER}-${env.SHORT_COMMIT}"
+        }
+      }
+    }
+
+    stage('Unit Test') {
+      steps {
+        container('maven') {
+          sh 'mvn -q test'
+        }
+      }
+    }
+
+    stage('Package') {
+      steps {
+        container('maven') {
+          sh 'mvn -q -DskipTests package'
+        }
+      }
+    }
+
+    stage('Build And Push Images') {
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'gitlab-registry-credentials', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASSWORD')]) {
+          container('kaniko') {
+            sh '''
+              set -euo pipefail
+              . ./ci_cd/env.sh
+              auth="$(printf '%s:%s' "$REGISTRY_USER" "$REGISTRY_PASSWORD" | base64 | tr -d '\n')"
+              mkdir -p /kaniko/.docker
+              cat > /kaniko/.docker/config.json <<EOF
+              {
+                "auths": {
+                  "http://${APP_IMAGE_REGISTRY}": {
+                    "auth": "${auth}"
+                  }
+                }
+              }
+              EOF
+
+              build_image() {
+                image_name="$1"
+                module_name="$2"
+                app_port="$3"
+                jar_path="${module_name}/target/${module_name}-1.0-SNAPSHOT-exec.jar"
+                /kaniko/executor \
+                  --context "${WORKSPACE}" \
+                  --dockerfile "${WORKSPACE}/deploy/docker/Dockerfile.exec-jar" \
+                  --build-arg "JAR_FILE=${jar_path}" \
+                  --build-arg "APP_PORT=${app_port}" \
+                  --destination "${APP_IMAGE_REGISTRY}/${APP_IMAGE_REPOSITORY}/${image_name}:${IMAGE_TAG}" \
+                  --insecure \
+                  --skip-tls-verify
+              }
+
+              build_image gateway galaxy_mall-gateway 8080
+              build_image user galaxy_mall-user 8081
+              build_image product galaxy_mall-product 8082
+              build_image stock galaxy_mall-stock 8083
+              build_image order galaxy_mall-order 8084
+              build_image payment galaxy_mall-payment 8085
+            '''
+          }
+        }
+      }
+    }
+
+    stage('Deploy') {
+      steps {
+        container('kubectl') {
+          sh '''
+            set -euo pipefail
+            chmod +x ci_cd/scripts/*.sh
+            . ./ci_cd/env.sh
+            APP_IMAGE_TAG="${IMAGE_TAG}" ./ci_cd/scripts/80_apply_business_stack.sh "${IMAGE_TAG}"
+          '''
+        }
+      }
+    }
+  }
+}
