@@ -1,6 +1,5 @@
 services:
   order:
     url: ${SERVICES_ORDER_URL:http://galaxy-mall-order:8080}
-    url: ${SERVICES_ORDER_URL:http://galaxy-mall-order:8084}
   stock:
-    url: ${SERVICES_STOCK_URL:http://galaxy-mall-stock:8083}
+    url: ${SERVICES_STOCK_URL:http://galaxy-mall-stock:8080}
