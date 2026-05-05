@@ -1,4 +1,16 @@
 # galaxy_mall
+所以最终判断是：
+
+- prometheus-grafana-k3s.md：方向对，但现在没落地
+- values.yaml：可以作为 kube-prometheus-stack 的基础 values
+- galaxy-mall-service-monitor.yaml：按当前 live 集群配置是错的，不能抓到指标
+
+修正后才能用，最少要改这几件事：
+
+1. 先真正部署 kube-prometheus-stack
+2. 给 Galaxy Mall 的 Service 加 metadata.labels
+3. 把 ServiceMonitor 的 selector 改成能匹配这些 Service 的 label
+4. 给 Service 端口加 name: http，或者同步改 ServiceMonitor
 
 • galaxy_mall-seckill 已经从空模块补成可运行的 Spring Boot 秒杀服务了，现在它不再只是 Maven 子模块，占位而已，而是可以像其他应用服务一样打包镜像。
 
