@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+---
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: prometheus
+  namespace: kube-system
+spec:
+  repo: https://prometheus-community.github.io/helm-charts
+  chart: kube-prometheus-stack
+  targetNamespace: monitoring
+  createNamespace: true
+  valuesContent: |-
+    prometheus:
+      prometheusSpec:
+        serviceMonitorSelectorNilUsesHelmValues: false
+        serviceMonitorSelector: {}
+        serviceMonitorNamespaceSelector: {}
+      service:
+        type: NodePort
+        nodePort: 30090
+
+    grafana:
+      adminPassword: "5Edidada"
+      service:
+        type: NodePort
+        nodePort: 30300
+
+    alertmanager:
+      enabled: true
+      service:
+        type: NodePort
+        nodePort: 30301
+
+    prometheus-node-exporter:
+      enabled: true
