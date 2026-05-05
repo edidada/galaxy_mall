@@ -87,6 +87,33 @@ public final class InMemoryStockBackend implements StockBackend {
     }
 
     @Override
+    public OperationResult<StockReservation> restock(String adjustmentId, String productId, int quantity, String reason) {
+        stockLedgerRepository.increase(productId, quantity);
+        redisStock.computeIfAbsent(productId, ignored -> new AtomicInteger()).addAndGet(quantity);
+        metricsCollector.increment("stock.restock");
+        return OperationResult.success(
+                "stock-restocked:" + reason,
+                new StockReservation(adjustmentId, productId, quantity, redisStock(productId), true)
+        );
+    }
+
+    @Override
+    public OperationResult<StockReservation> compensateRestock(String adjustmentId, String productId, int quantity) {
+        boolean success = stockLedgerRepository.decreaseWithLock(productId, quantity);
+        if (!success) {
+            metricsCollector.increment("stock.restock.compensation.reject");
+            return OperationResult.failure("stock-not-enough-for-restock-compensation");
+        }
+        AtomicInteger stock = redisStock.computeIfAbsent(productId, ignored -> new AtomicInteger(stockLedgerRepository.get(productId)));
+        stock.addAndGet(-quantity);
+        metricsCollector.increment("stock.restock.compensation");
+        return OperationResult.success(
+                "restock-compensated",
+                new StockReservation(adjustmentId, productId, quantity, stock.get(), true)
+        );
+    }
+
+    @Override
     public void reconcile(String productId) {
         int dbStock = stockLedgerRepository.get(productId);
         redisStock.put(productId, new AtomicInteger(dbStock));

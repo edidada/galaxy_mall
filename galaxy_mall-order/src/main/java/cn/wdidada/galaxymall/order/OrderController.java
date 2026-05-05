@@ -16,14 +16,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final CloudOrderService cloudOrderService;
+    private final SeataTccOrderService seataTccOrderService;
 
-    public OrderController(CloudOrderService cloudOrderService) {
+    public OrderController(CloudOrderService cloudOrderService, SeataTccOrderService seataTccOrderService) {
         this.cloudOrderService = cloudOrderService;
+        this.seataTccOrderService = seataTccOrderService;
     }
 
     @PostMapping
     public ApiResponse<OrderView> createOrder(@Valid @RequestBody CreateOrderRequest request) {
         return cloudOrderService.createOrder(request);
+    }
+
+    @PostMapping("/tcc")
+    public ApiResponse<OrderView> createOrderByTcc(@Valid @RequestBody CreateOrderRequest request) {
+        return seataTccOrderService.createOrder(request);
     }
 
     @GetMapping("/{orderId}")
@@ -34,5 +41,15 @@ public class OrderController {
     @PostMapping("/{orderId}/paid")
     public ApiResponse<OrderView> markPaid(@PathVariable String orderId) {
         return cloudOrderService.markPaid(orderId);
+    }
+
+    @PostMapping("/{orderId}/refunded")
+    public ApiResponse<OrderView> markRefunded(@PathVariable String orderId) {
+        return cloudOrderService.markRefunded(orderId);
+    }
+
+    @PostMapping("/{orderId}/refund-rollback")
+    public ApiResponse<OrderView> rollbackRefund(@PathVariable String orderId) {
+        return cloudOrderService.rollbackRefund(orderId);
     }
 }

@@ -41,5 +41,6 @@ build/
 *.iml
 
 server/venv
-.m2repo
 deploy/docker/output/*.tar
+dell_r630/*.tar
+dell_r630/*.tgz

@@ -202,6 +202,25 @@ public class OrderServiceApplication {
         return new CloudOrderService(orderStore, localBinlogRepository, metricsCollector, traceLogger, productClient, orderMessagePublisher);
     }
 
+    @Bean
+    SeataTccOrderService seataTccOrderService(
+            OrderStore orderStore,
+            LocalBinlogRepository localBinlogRepository,
+            ProductClient productClient,
+            StockClient stockClient,
+            MetricsCollector metricsCollector,
+            TraceLogger traceLogger
+    ) {
+        return new SeataTccOrderService(
+                orderStore,
+                localBinlogRepository,
+                productClient,
+                stockClient,
+                metricsCollector,
+                traceLogger
+        );
+    }
+
     @Bean(destroyMethod = "close")
     OrderStockReleaseCompensationTask orderStockReleaseCompensationTask(
             LocalBinlogRepository localBinlogRepository,

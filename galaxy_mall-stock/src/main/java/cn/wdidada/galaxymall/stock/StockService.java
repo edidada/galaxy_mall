@@ -27,6 +27,14 @@ public final class StockService {
         return stockBackend.release(reservationId, reason);
     }
 
+    public OperationResult<StockReservation> restock(String adjustmentId, String productId, int quantity, String reason) {
+        return stockBackend.restock(adjustmentId, productId, quantity, reason);
+    }
+
+    public OperationResult<StockReservation> compensateRestock(String adjustmentId, String productId, int quantity) {
+        return stockBackend.compensateRestock(adjustmentId, productId, quantity);
+    }
+
     public void reconcile(String productId) {
         stockBackend.reconcile(productId);
     }

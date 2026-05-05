@@ -37,6 +37,7 @@
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-cloud.version>2023.0.1</spring-cloud.version>
+        <seata.version>2.6.0</seata.version>
     </properties>
 
     <dependencyManagement>

@@ -18,6 +18,18 @@ server:
 services:
   order:
     url: ${SERVICES_ORDER_URL:http://localhost:8084}
+  stock:
+    url: ${SERVICES_STOCK_URL:http://localhost:8083}
+
+seata:
+  enabled: ${SEATA_ENABLED:false}
+  application-id: ${spring.application.name}
+  tx-service-group: ${SEATA_TX_SERVICE_GROUP:galaxy-mall-tx-group}
+  service:
+    vgroupMapping:
+      galaxy-mall-tx-group: ${SEATA_VGROUP_MAPPING:default}
+    grouplist:
+      default: ${SEATA_SERVER_ADDR:127.0.0.1:8091}
 
 management:
   endpoint:

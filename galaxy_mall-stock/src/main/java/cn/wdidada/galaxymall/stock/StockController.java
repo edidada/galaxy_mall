@@ -5,6 +5,8 @@ import cn.wdidada.galaxymall.common.api.ApiResponse;
 import cn.wdidada.galaxymall.common.api.StockConfirmRequest;
 import cn.wdidada.galaxymall.common.api.StockDeductRequest;
 import cn.wdidada.galaxymall.common.api.StockReleaseRequest;
+import cn.wdidada.galaxymall.common.api.StockRestockCompensateRequest;
+import cn.wdidada.galaxymall.common.api.StockRestockRequest;
 import cn.wdidada.galaxymall.common.api.StockView;
 import cn.wdidada.galaxymall.common.domain.StockReservation;
 import jakarta.validation.Valid;
@@ -48,6 +50,33 @@ public class StockController {
             return ApiResponse.failure(result.message());
         }
         return ApiResponse.success(result.message(), toView(result.data(), "RELEASED"));
+    }
+
+    @PostMapping("/restock")
+    public ApiResponse<StockView> restock(@Valid @RequestBody StockRestockRequest request) {
+        OperationResult<StockReservation> result = stockService.restock(
+                request.adjustmentId(),
+                request.productId(),
+                request.quantity(),
+                request.reason()
+        );
+        if (!result.success()) {
+            return ApiResponse.failure(result.message());
+        }
+        return ApiResponse.success(result.message(), toView(result.data(), "RESTOCKED"));
+    }
+
+    @PostMapping("/restock/compensate")
+    public ApiResponse<StockView> compensateRestock(@Valid @RequestBody StockRestockCompensateRequest request) {
+        OperationResult<StockReservation> result = stockService.compensateRestock(
+                request.adjustmentId(),
+                request.productId(),
+                request.quantity()
+        );
+        if (!result.success()) {
+            return ApiResponse.failure(result.message());
+        }
+        return ApiResponse.success(result.message(), toView(result.data(), "RESTOCK_COMPENSATED"));
     }
 
     private StockView toView(StockReservation reservation, String status) {

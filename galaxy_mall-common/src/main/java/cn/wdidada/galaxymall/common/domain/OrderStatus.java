@@ -7,6 +7,7 @@ public enum OrderStatus {
     STOCK_RESERVED,
     WAITING_PAYMENT,
     PAID,
+    REFUNDED,
     FAILED,
     REJECTED
 }

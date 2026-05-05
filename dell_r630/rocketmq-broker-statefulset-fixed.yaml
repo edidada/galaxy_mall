@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rocketmq-broker
+  namespace: middleware
+spec:
+  serviceName: rocketmq-broker
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rocketmq-broker
+  template:
+    metadata:
+      labels:
+        app: rocketmq-broker
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: broker
+          image: apache/rocketmq:5.3.4
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: BROKER_MEM
+              value: "-Xms256m -Xmx256m -Xmn128m"
+            - name: JAVA_OPT_EXT
+              value: "-server -Xms256m -Xmx256m -Xmn128m -XX:MaxDirectMemorySize=256m -XX:MetaspaceSize=128m -XX:MaxMetaspaceSize=256m"
+          command:
+            - sh
+            - -c
+            - |
+              cp /etc/rocketmq/broker.conf /tmp/broker.conf
+              echo "brokerIP1=${POD_IP}" >> /tmp/broker.conf
+              exec ./mqbroker -n rocketmq-namesrv:9876 -c /tmp/broker.conf
+          ports:
+            - containerPort: 10911
+              name: remoting
+            - containerPort: 10909
+              name: ha
+            - containerPort: 10912
+              name: fast-remoting
+          volumeMounts:
+            - name: broker-config
+              mountPath: /etc/rocketmq
+            - name: broker-store
+              mountPath: /home/rocketmq/store
+          readinessProbe:
+            tcpSocket:
+              port: 10911
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 10911
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1"
+              memory: "6Gi"
+      volumes:
+        - name: broker-config
+          configMap:
+            name: rocketmq-broker-config
+  volumeClaimTemplates:
+    - metadata:
+        name: broker-store
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
