@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gitlab-redis-secret
+  namespace: __GITLAB_NAMESPACE__
+type: Opaque
+stringData:
+  redis-password: "__GITLAB_REDIS_PASSWORD__"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gitlab-redis
+  namespace: __GITLAB_NAMESPACE__
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gitlab-redis
+  template:
+    metadata:
+      labels:
+        app: gitlab-redis
+    spec:
+      containers:
+        - name: redis
+          image: redis:7.2-alpine
+          command:
+            - sh
+            - -c
+            - exec redis-server --appendonly yes --requirepass "$REDIS_PASSWORD"
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: gitlab-redis-secret
+                  key: redis-password
+          ports:
+            - containerPort: 6379
+              name: redis
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: gitlab-redis-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: gitlab-redis-pvc
+  namespace: __GITLAB_NAMESPACE__
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gitlab-redis
+  namespace: __GITLAB_NAMESPACE__
+spec:
+  selector:
+    app: gitlab-redis
+  ports:
+    - port: 6379
+      targetPort: 6379

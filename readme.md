@@ -1,6 +1,43 @@
 # galaxy_mall
 
-这套监控在 192.168.31.171 上已经跑通，但不是你最开始那 3 个文件原样可用。
+```shell
+cd /Users/ibqo/Develop/git/github/java/galaxy_mall/front
+docker load -i nginx-alpine.tar
+npm run build
+DOCKER_BUILDKIT=0 docker build -t galaxy-mall/front:latest .
+docker save -o ../deploy/docker/output/front-latest.tar galaxy-mall/front:latest
+```
+
+ibqo@ibqodeMBP galaxy_mall % 
+  cd /Users/ibqo/Develop/git/github/java/galaxy_mall/front
+  docker load -i nginx-alpine.tar
+  npm run build
+  DOCKER_BUILDKIT=0 docker build -t galaxy-mall/front:latest .
+  docker save -o ../deploy/docker/output/front-latest.tar galaxy-mall/front:latest
+open nginx-alpine.tar: no such file or directory
+
+> front@0.0.0 build
+> vite build
+
+vite v8.0.10 building client environment for production...
+✓ 14 modules transformed.
+computing gzip size...
+dist/index.html                  0.45 kB │ gzip:  0.29 kB
+dist/assets/index-DbmCfp8U.css  10.77 kB │ gzip:  2.98 kB
+dist/assets/index-CJSn_Maw.js   80.48 kB │ gzip: 28.73 kB
+
+✓ built in 613ms
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            BuildKit is currently disabled; enable it by removing the DOCKER_BUILDKIT=0
+            environment-variable.
+
+Sending build context to Docker daemon  53.37MB
+Step 1/5 : FROM nginx:alpine
+failed to resolve reference "docker.io/library/nginx:alpine": failed to do request: Head "https://registry-1.docker.io/v2/library/nginx/manifests/alpine": dial tcp 199.96.58.157:443: i/o timeout
+Error response from daemon: No such image: galaxy-mall/front:latest
+ibqo@ibqodeMBP front % 
+
+这套监控在 192.168.31.171 上已经跑通，但不是你最开始那 3个文件原样可用。
 我改了这几处并已推到 origin/k3s_uat_8080：
 
 - 25df782 Fix k3s monitoring manifests for default namespace
