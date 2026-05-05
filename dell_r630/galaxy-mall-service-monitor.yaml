@@ -11,7 +11,7 @@ spec:
       - default
   selector:
     matchLabels:
-      app: galaxy-mall
+      monitoring: galaxy-mall
   endpoints:
     - port: http
       path: /actuator/prometheus

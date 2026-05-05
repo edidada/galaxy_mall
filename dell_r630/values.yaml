@@ -3,6 +3,9 @@ prometheus:
     serviceMonitorSelectorNilUsesHelmValues: false
     serviceMonitorSelector: {}
     serviceMonitorNamespaceSelector: {}
+  service:
+    type: NodePort
+    nodePort: 30090
 
 grafana:
   adminPassword: "5Edidada"

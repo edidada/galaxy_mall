@@ -36,11 +36,14 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gateway
+  labels:
+    monitoring: galaxy-mall
 spec:
   selector:
     app: gateway
   ports:
-    - port: 8080
+    - name: http
+      port: 8080
       targetPort: 8080
   type: NodePort
 ---
@@ -68,11 +71,14 @@ apiVersion: v1
 kind: Service
 metadata:
   name: user
+  labels:
+    monitoring: galaxy-mall
 spec:
   selector:
     app: user
   ports:
-    - port: 8080
+    - name: http
+      port: 8080
       targetPort: 8080
   type: NodePort
 ---
@@ -100,11 +106,14 @@ apiVersion: v1
 kind: Service
 metadata:
   name: product
+  labels:
+    monitoring: galaxy-mall
 spec:
   selector:
     app: product
   ports:
-    - port: 8080
+    - name: http
+      port: 8080
       targetPort: 8080
   type: NodePort
 ---
@@ -132,11 +141,14 @@ apiVersion: v1
 kind: Service
 metadata:
   name: stock
+  labels:
+    monitoring: galaxy-mall
 spec:
   selector:
     app: stock
   ports:
-    - port: 8080
+    - name: http
+      port: 8080
       targetPort: 8080
   type: NodePort
 ---
@@ -167,11 +179,14 @@ apiVersion: v1
 kind: Service
 metadata:
   name: order
+  labels:
+    monitoring: galaxy-mall
 spec:
   selector:
     app: order
   ports:
-    - port: 8080
+    - name: http
+      port: 8080
       targetPort: 8080
   type: NodePort
 ---
@@ -199,10 +214,13 @@ apiVersion: v1
 kind: Service
 metadata:
   name: payment
+  labels:
+    monitoring: galaxy-mall
 spec:
   selector:
     app: payment
   ports:
-    - port: 8080
+    - name: http
+      port: 8080
       targetPort: 8080
   type: NodePort
