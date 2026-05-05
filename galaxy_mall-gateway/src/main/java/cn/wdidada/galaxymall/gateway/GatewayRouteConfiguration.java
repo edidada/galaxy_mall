@@ -14,6 +14,7 @@ public class GatewayRouteConfiguration {
             RouteLocatorBuilder builder,
             @Value("${services.user.url}") String userUrl,
             @Value("${services.product.url}") String productUrl,
+            @Value("${services.seckill.url}") String seckillUrl,
             @Value("${services.stock.url}") String stockUrl,
             @Value("${services.order.url}") String orderUrl,
             @Value("${services.payment.url}") String paymentUrl
@@ -25,6 +26,9 @@ public class GatewayRouteConfiguration {
                 .route("product-edge", r -> r.path("/edge/products/**")
                         .filters(f -> f.rewritePath("/edge/products/(?<path>.*)", "/api/products/${path}"))
                         .uri(productUrl))
+                .route("seckill-edge", r -> r.path("/edge/seckill/**")
+                        .filters(f -> f.rewritePath("/edge/seckill/(?<path>.*)", "/api/seckill/${path}"))
+                        .uri(seckillUrl))
                 .route("stock-edge", r -> r.path("/edge/stocks/**")
                         .filters(f -> f.rewritePath("/edge/stocks/(?<path>.*)", "/api/stocks/${path}"))
                         .uri(stockUrl))

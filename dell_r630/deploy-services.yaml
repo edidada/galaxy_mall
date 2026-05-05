@@ -23,6 +23,8 @@ spec:
           value: "http://user:8080"
         - name: SERVICES_PRODUCT_URL
           value: "http://product:8080"
+        - name: SERVICES_SECKILL_URL
+          value: "http://seckill:8080"
         - name: SERVICES_STOCK_URL
           value: "http://stock:8080"
         - name: SERVICES_ORDER_URL
@@ -111,6 +113,50 @@ metadata:
 spec:
   selector:
     app: product
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+  type: NodePort
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: seckill
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: seckill
+  template:
+    metadata:
+      labels:
+        app: seckill
+    spec:
+      containers:
+      - name: seckill
+        image: docker.io/galaxy-mall/galaxy-mall-seckill:local
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: SERVER_PORT
+          value: "8080"
+        - name: SERVICES_PRODUCT_URL
+          value: "http://product:8080"
+        - name: SERVICES_ORDER_URL
+          value: "http://order:8080"
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: seckill
+  labels:
+    monitoring: galaxy-mall
+spec:
+  selector:
+    app: seckill
   ports:
     - name: http
       port: 8080
