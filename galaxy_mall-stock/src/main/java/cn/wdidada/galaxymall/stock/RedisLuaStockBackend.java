@@ -132,6 +132,32 @@ public final class RedisLuaStockBackend implements StockBackend {
         return releaseReservation(reservationId, reason);
     }
 
+    @Override
+    public OperationResult<StockReservation> restock(String adjustmentId, String productId, int quantity, String reason) {
+        stockLedgerRepository.increase(productId, quantity);
+        redisTemplate.opsForValue().increment(stockKey(productId), quantity);
+        metricsCollector.increment("stock.restock");
+        return OperationResult.success(
+                "stock-restocked:" + reason,
+                new StockReservation(adjustmentId, productId, quantity, redisStock(productId), true)
+        );
+    }
+
+    @Override
+    public OperationResult<StockReservation> compensateRestock(String adjustmentId, String productId, int quantity) {
+        boolean success = stockLedgerRepository.decreaseWithLock(productId, quantity);
+        if (!success) {
+            metricsCollector.increment("stock.restock.compensation.reject");
+            return OperationResult.failure("stock-not-enough-for-restock-compensation");
+        }
+        Long remaining = redisTemplate.opsForValue().increment(stockKey(productId), -quantity);
+        metricsCollector.increment("stock.restock.compensation");
+        return OperationResult.success(
+                "restock-compensated",
+                new StockReservation(adjustmentId, productId, quantity, remaining == null ? 0 : remaining.intValue(), true)
+        );
+    }
+
     private OperationResult<StockReservation> releaseReservation(String reservationId, String reason) {
         ReservationSnapshot snapshot = readReservation(reservationId);
         if (snapshot == null) {

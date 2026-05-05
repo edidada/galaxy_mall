@@ -13,6 +13,10 @@ public interface StockBackend {
 
     OperationResult<StockReservation> release(String reservationId, String reason);
 
+    OperationResult<StockReservation> restock(String adjustmentId, String productId, int quantity, String reason);
+
+    OperationResult<StockReservation> compensateRestock(String adjustmentId, String productId, int quantity);
+
     void reconcile(String productId);
 
     int redisStock(String productId);

@@ -84,6 +84,38 @@ public final class CloudOrderService {
                 .orElseGet(() -> ApiResponse.failure("order-not-found"));
     }
 
+    public ApiResponse<OrderView> markRefunded(String orderId) {
+        return orderStore.findById(orderId)
+                .map(order -> {
+                    if (order.status() != OrderStatus.PAID) {
+                        return ApiResponse.<OrderView>failure("order-not-refundable");
+                    }
+                    order.updateStatus(OrderStatus.REFUNDED);
+                    orderStore.updateStatus(orderId, OrderStatus.REFUNDED);
+                    localBinlogRepository.append("ORDER_REFUNDED|" + orderId);
+                    metricsCollector.increment("order.refunded");
+                    traceLogger.log("order-service", "refunded", orderId);
+                    return ApiResponse.success("order-refunded", toView(order));
+                })
+                .orElseGet(() -> ApiResponse.failure("order-not-found"));
+    }
+
+    public ApiResponse<OrderView> rollbackRefund(String orderId) {
+        return orderStore.findById(orderId)
+                .map(order -> {
+                    if (order.status() != OrderStatus.REFUNDED) {
+                        return ApiResponse.<OrderView>failure("order-refund-not-rollbackable");
+                    }
+                    order.updateStatus(OrderStatus.PAID);
+                    orderStore.updateStatus(orderId, OrderStatus.PAID);
+                    localBinlogRepository.append("ORDER_REFUND_ROLLBACK|" + orderId);
+                    metricsCollector.increment("order.refund.rollback");
+                    traceLogger.log("order-service", "refund-rollback", orderId);
+                    return ApiResponse.success("order-refund-rolled-back", toView(order));
+                })
+                .orElseGet(() -> ApiResponse.failure("order-not-found"));
+    }
+
     private OrderView toView(Order order) {
         return new OrderView(
                 order.orderId(),

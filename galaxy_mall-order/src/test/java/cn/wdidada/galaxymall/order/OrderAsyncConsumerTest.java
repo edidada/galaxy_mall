@@ -8,6 +8,8 @@ import cn.wdidada.galaxymall.common.api.ProductView;
 import cn.wdidada.galaxymall.common.api.StockConfirmRequest;
 import cn.wdidada.galaxymall.common.api.StockDeductRequest;
 import cn.wdidada.galaxymall.common.api.StockReleaseRequest;
+import cn.wdidada.galaxymall.common.api.StockRestockCompensateRequest;
+import cn.wdidada.galaxymall.common.api.StockRestockRequest;
 import cn.wdidada.galaxymall.common.api.StockView;
 import cn.wdidada.galaxymall.common.client.ProductClient;
 import cn.wdidada.galaxymall.common.client.StockClient;
@@ -112,6 +114,16 @@ class OrderAsyncConsumerTest {
             public ApiResponse<StockView> release(StockReleaseRequest request) {
                 return ApiResponse.success("released", new StockView(request.reservationId(), "sku-1", 1, 10, "RELEASED"));
             }
+
+            @Override
+            public ApiResponse<StockView> restock(StockRestockRequest request) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public ApiResponse<StockView> compensateRestock(StockRestockCompensateRequest request) {
+                throw new UnsupportedOperationException();
+            }
         };
     }
 
@@ -131,6 +143,16 @@ class OrderAsyncConsumerTest {
             public ApiResponse<StockView> release(StockReleaseRequest request) {
                 return ApiResponse.failure("release-failed");
             }
+
+            @Override
+            public ApiResponse<StockView> restock(StockRestockRequest request) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public ApiResponse<StockView> compensateRestock(StockRestockCompensateRequest request) {
+                throw new UnsupportedOperationException();
+            }
         };
     }
 
@@ -149,6 +171,16 @@ class OrderAsyncConsumerTest {
             @Override
             public ApiResponse<StockView> release(StockReleaseRequest request) {
                 return ApiResponse.success("released", new StockView(request.reservationId(), "sku-1", 1, 10, "RELEASED"));
+            }
+
+            @Override
+            public ApiResponse<StockView> restock(StockRestockRequest request) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public ApiResponse<StockView> compensateRestock(StockRestockCompensateRequest request) {
+                throw new UnsupportedOperationException();
             }
         };
     }

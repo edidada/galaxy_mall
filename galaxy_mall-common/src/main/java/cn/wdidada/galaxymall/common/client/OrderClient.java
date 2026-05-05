@@ -20,4 +20,10 @@ public interface OrderClient {
 
     @PostMapping("/api/orders/{orderId}/paid")
     ApiResponse<OrderView> markPaid(@PathVariable("orderId") String orderId);
+
+    @PostMapping("/api/orders/{orderId}/refunded")
+    ApiResponse<OrderView> markRefunded(@PathVariable("orderId") String orderId);
+
+    @PostMapping("/api/orders/{orderId}/refund-rollback")
+    ApiResponse<OrderView> rollbackRefund(@PathVariable("orderId") String orderId);
 }

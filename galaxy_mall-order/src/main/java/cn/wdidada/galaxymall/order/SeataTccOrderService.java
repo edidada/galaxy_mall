@@ -17,6 +17,7 @@ import cn.wdidada.galaxymall.db.LocalBinlogRepository;
 import cn.wdidada.galaxymall.db.OrderStore;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import cn.wdidada.galaxymall.monitor.TraceLogger;
+import org.apache.seata.spring.annotation.GlobalTransactional;
 
 public final class SeataTccOrderService {
 
@@ -43,6 +44,7 @@ public final class SeataTccOrderService {
         this.traceLogger = traceLogger;
     }
 
+    @GlobalTransactional(name = "galaxy-order-tcc", rollbackFor = Exception.class)
     public ApiResponse<OrderView> createOrder(CreateOrderRequest request) {
         ApiResponse<ProductView> productResponse = productClient.getProduct(request.productId());
         if (!productResponse.success() || productResponse.data() == null) {

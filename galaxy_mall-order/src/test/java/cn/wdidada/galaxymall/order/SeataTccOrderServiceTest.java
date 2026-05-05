@@ -11,6 +11,8 @@ import cn.wdidada.galaxymall.common.api.ProductView;
 import cn.wdidada.galaxymall.common.api.StockConfirmRequest;
 import cn.wdidada.galaxymall.common.api.StockDeductRequest;
 import cn.wdidada.galaxymall.common.api.StockReleaseRequest;
+import cn.wdidada.galaxymall.common.api.StockRestockCompensateRequest;
+import cn.wdidada.galaxymall.common.api.StockRestockRequest;
 import cn.wdidada.galaxymall.common.api.StockView;
 import cn.wdidada.galaxymall.common.client.ProductClient;
 import cn.wdidada.galaxymall.common.client.StockClient;
@@ -155,6 +157,16 @@ class SeataTccOrderServiceTest {
         public ApiResponse<StockView> release(StockReleaseRequest request) {
             releaseCalls++;
             return releaseResponse;
+        }
+
+        @Override
+        public ApiResponse<StockView> restock(StockRestockRequest request) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public ApiResponse<StockView> compensateRestock(StockRestockCompensateRequest request) {
+            throw new UnsupportedOperationException();
         }
     }
 }

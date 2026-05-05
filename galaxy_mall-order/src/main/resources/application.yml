@@ -44,6 +44,16 @@ galaxy:
           username: ${ORDER_SHARD_1_USERNAME:root}
           password: ${ORDER_SHARD_1_PASSWORD:root}
 
+seata:
+  enabled: ${SEATA_ENABLED:false}
+  application-id: ${spring.application.name}
+  tx-service-group: ${SEATA_TX_SERVICE_GROUP:galaxy-mall-tx-group}
+  service:
+    vgroupMapping:
+      galaxy-mall-tx-group: ${SEATA_VGROUP_MAPPING:default}
+    grouplist:
+      default: ${SEATA_SERVER_ADDR:127.0.0.1:8091}
+
 management:
   endpoint:
     health:

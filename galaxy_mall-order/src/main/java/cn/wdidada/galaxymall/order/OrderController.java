@@ -42,4 +42,14 @@ public class OrderController {
     public ApiResponse<OrderView> markPaid(@PathVariable String orderId) {
         return cloudOrderService.markPaid(orderId);
     }
+
+    @PostMapping("/{orderId}/refunded")
+    public ApiResponse<OrderView> markRefunded(@PathVariable String orderId) {
+        return cloudOrderService.markRefunded(orderId);
+    }
+
+    @PostMapping("/{orderId}/refund-rollback")
+    public ApiResponse<OrderView> rollbackRefund(@PathVariable String orderId) {
+        return cloudOrderService.rollbackRefund(orderId);
+    }
 }
