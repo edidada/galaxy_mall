@@ -7,6 +7,7 @@
 !galaxy_mall-gateway/target/*-exec.jar
 !galaxy_mall-user/target/*-exec.jar
 !galaxy_mall-product/target/*-exec.jar
+!galaxy_mall-seckill/target/*-exec.jar
 !galaxy_mall-stock/target/*-exec.jar
 !galaxy_mall-order/target/*-exec.jar
 !galaxy_mall-payment/target/*-exec.jar

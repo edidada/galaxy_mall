@@ -15,6 +15,7 @@ services=(
   "gateway:galaxy_mall-gateway:8080"
   "user:galaxy_mall-user:8081"
   "product:galaxy_mall-product:8082"
+  "galaxy-mall-seckill:galaxy_mall-seckill:8080"
   "stock:galaxy_mall-stock:8083"
   "order:galaxy_mall-order:8084"
   "payment:galaxy_mall-payment:8085"
@@ -60,6 +61,7 @@ import into k3s:
   sudo k3s ctr images import ${OUTPUT_DIR}/gateway-${IMAGE_TAG}.tar
   sudo k3s ctr images import ${OUTPUT_DIR}/user-${IMAGE_TAG}.tar
   sudo k3s ctr images import ${OUTPUT_DIR}/product-${IMAGE_TAG}.tar
+  sudo k3s ctr images import ${OUTPUT_DIR}/galaxy-mall-seckill-${IMAGE_TAG}.tar
   sudo k3s ctr images import ${OUTPUT_DIR}/stock-${IMAGE_TAG}.tar
   sudo k3s ctr images import ${OUTPUT_DIR}/order-${IMAGE_TAG}.tar
   sudo k3s ctr images import ${OUTPUT_DIR}/payment-${IMAGE_TAG}.tar

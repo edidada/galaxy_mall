@@ -20,6 +20,8 @@ services:
     url: ${SERVICES_USER_URL:http://localhost:8081}
   product:
     url: ${SERVICES_PRODUCT_URL:http://localhost:8082}
+  seckill:
+    url: ${SERVICES_SECKILL_URL:http://localhost:8086}
   stock:
     url: ${SERVICES_STOCK_URL:http://localhost:8083}
   order:

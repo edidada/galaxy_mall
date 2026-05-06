@@ -170,6 +170,24 @@ class SeckillServiceTest {
             );
         }
 
+        @Override
+        public ApiResponse<OrderView> markRefunded(String orderId) {
+            orderStatuses.put(orderId, "REFUNDED");
+            return ApiResponse.success(
+                    "order-refunded",
+                    new OrderView(orderId, "u1", "sku-seckill", 1, 19900, "REFUNDED", null, System.currentTimeMillis())
+            );
+        }
+
+        @Override
+        public ApiResponse<OrderView> rollbackRefund(String orderId) {
+            orderStatuses.put(orderId, "PAID");
+            return ApiResponse.success(
+                    "order-refund-rollback",
+                    new OrderView(orderId, "u1", "sku-seckill", 1, 19900, "PAID", null, System.currentTimeMillis())
+            );
+        }
+
         int createCalls() {
             return createCalls.get();
         }
