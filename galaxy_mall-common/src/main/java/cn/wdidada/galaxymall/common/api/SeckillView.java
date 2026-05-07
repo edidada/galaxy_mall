@@ -1,5 +1,7 @@
 package cn.wdidada.galaxymall.common.api;
 
+import java.io.Serializable;
+
 public record SeckillView(
         String requestId,
         String orderId,
@@ -11,5 +13,5 @@ public record SeckillView(
         String detail,
         long acceptedEpochMillis,
         long updatedEpochMillis
-) {
+) implements Serializable {
 }

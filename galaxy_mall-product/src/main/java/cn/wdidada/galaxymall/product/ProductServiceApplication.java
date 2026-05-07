@@ -4,6 +4,7 @@ import cn.wdidada.galaxymall.cache.BloomFilterGuard;
 import cn.wdidada.galaxymall.cache.MultiLevelCache;
 import cn.wdidada.galaxymall.common.domain.Product;
 import cn.wdidada.galaxymall.db.ProductRepository;
+import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +17,7 @@ import org.springframework.context.annotation.Bean;
                 "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration"
         }
 )
+@EnableDubbo
 public class ProductServiceApplication {
 
     public static void main(String[] args) {

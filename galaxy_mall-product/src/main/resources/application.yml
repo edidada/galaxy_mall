@@ -3,10 +3,41 @@ spring:
     name: galaxy-mall-product
   lifecycle:
     timeout-per-shutdown-phase: 30s
+  cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        register-enabled: ${NACOS_DISCOVERY_REGISTER_ENABLED:${NACOS_DISCOVERY_ENABLED:false}}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+    sentinel:
+      enabled: ${SENTINEL_ENABLED:true}
+      eager: true
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:}
+        port: ${SENTINEL_TRANSPORT_PORT:8712}
 
 server:
   port: 8082
   shutdown: graceful
+
+dubbo:
+  application:
+    name: ${spring.application.name}
+    qos-enable: false
+    serialize-check-status: WARN
+  protocol:
+    name: tri
+    port: ${DUBBO_PORT:20882}
+  registry:
+    address: ${DUBBO_REGISTRY_ADDRESS:N/A}
+    register-mode: instance
+    group: ${DUBBO_GROUP:galaxy-mall}
+    parameters:
+      namespace: ${NACOS_NAMESPACE:}
 
 management:
   endpoint:
@@ -21,4 +52,4 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus,sentinel

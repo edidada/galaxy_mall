@@ -6,6 +6,21 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
   cloud:
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        register-enabled: ${NACOS_DISCOVERY_REGISTER_ENABLED:${NACOS_DISCOVERY_ENABLED:false}}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+    sentinel:
+      enabled: ${SENTINEL_ENABLED:true}
+      eager: true
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:}
+        port: ${SENTINEL_TRANSPORT_PORT:8710}
     gateway:
       filter:
         json-to-grpc:
@@ -15,19 +30,19 @@ server:
   port: 8080
   shutdown: graceful
 
-services:
-  user:
-    url: ${SERVICES_USER_URL:http://localhost:8081}
-  product:
-    url: ${SERVICES_PRODUCT_URL:http://localhost:8082}
-  seckill:
-    url: ${SERVICES_SECKILL_URL:http://localhost:8086}
-  stock:
-    url: ${SERVICES_STOCK_URL:http://localhost:8083}
-  order:
-    url: ${SERVICES_ORDER_URL:http://localhost:8084}
-  payment:
-    url: ${SERVICES_PAYMENT_URL:http://localhost:8085}
+dubbo:
+  application:
+    name: ${spring.application.name}
+    qos-enable: false
+    serialize-check-status: WARN
+  registry:
+    address: ${DUBBO_REGISTRY_ADDRESS:N/A}
+    register-mode: instance
+    group: ${DUBBO_GROUP:galaxy-mall}
+    parameters:
+      namespace: ${NACOS_NAMESPACE:}
+  consumer:
+    check: false
 
 galaxy:
   gateway:
@@ -43,10 +58,6 @@ galaxy:
     waiting-room:
       capacity: ${GALAXY_GATEWAY_WAITING_ROOM_CAPACITY:1000000}
       release-per-second: ${GALAXY_GATEWAY_WAITING_ROOM_RELEASE_PER_SECOND:100000}
-    http:
-      connect-timeout-ms: ${GALAXY_GATEWAY_HTTP_CONNECT_TIMEOUT_MS:1000}
-      read-timeout-ms: ${GALAXY_GATEWAY_HTTP_READ_TIMEOUT_MS:3000}
-
 management:
   endpoint:
     health:
@@ -60,4 +71,4 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus,sentinel

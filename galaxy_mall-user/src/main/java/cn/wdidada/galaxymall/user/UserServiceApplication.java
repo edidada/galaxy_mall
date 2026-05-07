@@ -2,6 +2,7 @@ package cn.wdidada.galaxymall.user;
 
 import cn.wdidada.galaxymall.common.domain.User;
 import cn.wdidada.galaxymall.db.UserRepository;
+import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -14,6 +15,7 @@ import org.springframework.context.annotation.Bean;
                 "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration"
         }
 )
+@EnableDubbo
 public class UserServiceApplication {
 
     public static void main(String[] args) {

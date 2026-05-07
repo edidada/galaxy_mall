@@ -91,8 +91,8 @@ live 集群上的最终情况是：
 
 - 在 galaxy_mall-seckill/src/main/java/cn/wdidada/galaxymall/seckill/SeckillService.java:25 实现了秒杀主链路：商品本地缓存校验、同用户同商品幂等复用、全局/用户/IP
   限流、有限队列异步受理、后台提交订单、轮询订单状态并回写秒杀结果。
-- 在 galaxy_mall-seckill/src/main/java/cn/wdidada/galaxymall/seckill/SeckillServiceApplication.java:14 补了应用入口、Feign 客户端和可调性能参数；pom.xml 也补齐了
-  web/openfeign/actuator/test 依赖和 spring-boot-maven-plugin，现在这个模块具备独立部署条件。
+- 在 galaxy_mall-seckill/src/main/java/cn/wdidada/galaxymall/seckill/SeckillServiceApplication.java:14 补了应用入口、Dubbo 引用和可调性能参数；pom.xml 也补齐了
+  web/actuator/test 与 Dubbo 依赖后，现在这个模块具备独立部署条件。
 - 新增了公共 API galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/api/SeckillRequest.java:7 和 galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/
   common/api/SeckillView.java:3，并扩展了 galaxy_mall-common/src/main/java/cn/wdidada/galaxymall/common/IdGenerator.java:13 生成秒杀请求号。
 - 加了单测 galaxy_mall-seckill/src/test/java/cn/wdidada/galaxymall/seckill/SeckillServiceTest.java:23，覆盖异步成功、重复请求复用、非秒杀商品拒绝、按用户限流。
@@ -164,7 +164,7 @@ command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_post.sh "http:
 
 2. 保留并整理多模块结构：
 
-- `galaxy_mall-common`：公共 DTO、Feign Client、领域模型
+- `galaxy_mall-common`：公共 DTO、RPC Client 契约、领域模型
 - `galaxy_mall-cache`：多级缓存、布隆过滤器、缓存预热
 - `galaxy_mall-db`：内存仓储、本地 Binlog
 - `galaxy_mall-monitor`：指标计数、Trace 日志
@@ -221,8 +221,8 @@ command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_post.sh "http:
 
 其中：
 
-- 网关不再依赖 `OpenFeign`，避免 `Spring Cloud Gateway` 和 Feign 子上下文相互污染
-- 订单、支付服务之间仍保留 `OpenFeign`，作为内部服务调用实现
+- 网关不再依赖 `OpenFeign`，避免 `Spring Cloud Gateway` 和子上下文相互污染
+- 服务间内部调用统一切到 Dubbo，HTTP 仅保留对外入口
 
 核心编排代码：
 
@@ -390,7 +390,7 @@ java -jar galaxy_mall-gateway/target/galaxy_mall-gateway-1.0-SNAPSHOT-exec.jar
 - REST API
 - Spring Cloud Gateway 正式路由
 - 网关层 `RestClient` 调用
-- 内部 Feign 调用
+- 内部 Dubbo RPC 调用
 - 配置文件
 - 可执行服务包
 - Spring 集成冒烟测试

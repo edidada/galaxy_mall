@@ -4,6 +4,7 @@ import cn.wdidada.galaxymall.db.LocalBinlogRepository;
 import cn.wdidada.galaxymall.db.StockLedgerRepository;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import java.time.Duration;
+import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -19,6 +20,7 @@ import org.springframework.data.redis.core.StringRedisTemplate;
                 "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration"
         }
 )
+@EnableDubbo
 public class StockServiceApplication {
 
     public static void main(String[] args) {

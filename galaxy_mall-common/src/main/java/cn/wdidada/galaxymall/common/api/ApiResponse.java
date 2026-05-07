@@ -1,6 +1,8 @@
 package cn.wdidada.galaxymall.common.api;
 
-public record ApiResponse<T>(boolean success, String message, T data) {
+import java.io.Serializable;
+
+public record ApiResponse<T>(boolean success, String message, T data) implements Serializable {
 
     public static <T> ApiResponse<T> success(String message, T data) {
         return new ApiResponse<>(true, message, data);

@@ -2,6 +2,7 @@ package cn.wdidada.galaxymall.common.api;
 
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import java.io.Serializable;
 
 public record GatewayOrderRequest(
         @NotBlank String userId,
@@ -9,5 +10,5 @@ public record GatewayOrderRequest(
         @Min(1) int quantity,
         @NotBlank String clientIp,
         String queueToken
-) {
+) implements Serializable {
 }

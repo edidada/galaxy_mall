@@ -4,22 +4,25 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
   cloud:
-    openfeign:
-      client:
-        config:
-          default:
-            connectTimeout: ${GALAXY_PAYMENT_FEIGN_CONNECT_TIMEOUT_MS:1000}
-            readTimeout: ${GALAXY_PAYMENT_FEIGN_READ_TIMEOUT_MS:3000}
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        register-enabled: ${NACOS_DISCOVERY_REGISTER_ENABLED:${NACOS_DISCOVERY_ENABLED:false}}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+    sentinel:
+      enabled: ${SENTINEL_ENABLED:true}
+      eager: true
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:}
+        port: ${SENTINEL_TRANSPORT_PORT:8715}
 
 server:
   port: 8085
   shutdown: graceful
-
-services:
-  order:
-    url: ${SERVICES_ORDER_URL:http://localhost:8084}
-  stock:
-    url: ${SERVICES_STOCK_URL:http://localhost:8083}
 
 seata:
   enabled: ${SEATA_ENABLED:false}
@@ -30,6 +33,23 @@ seata:
       galaxy-mall-tx-group: ${SEATA_VGROUP_MAPPING:default}
     grouplist:
       default: ${SEATA_SERVER_ADDR:127.0.0.1:8091}
+
+dubbo:
+  application:
+    name: ${spring.application.name}
+    qos-enable: false
+    serialize-check-status: WARN
+  protocol:
+    name: tri
+    port: ${DUBBO_PORT:20885}
+  registry:
+    address: ${DUBBO_REGISTRY_ADDRESS:N/A}
+    register-mode: instance
+    group: ${DUBBO_GROUP:galaxy-mall}
+    parameters:
+      namespace: ${NACOS_NAMESPACE:}
+  consumer:
+    check: false
 
 management:
   endpoint:
@@ -44,4 +64,4 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus,sentinel

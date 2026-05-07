@@ -1,15 +1,3 @@
-services:
-  user:
-    url: ${SERVICES_USER_URL:http://galaxy-mall-user:8081}
-  product:
-    url: ${SERVICES_PRODUCT_URL:http://galaxy-mall-product:8082}
-  stock:
-    url: ${SERVICES_STOCK_URL:http://galaxy-mall-stock:8083}
-  order:
-    url: ${SERVICES_ORDER_URL:http://galaxy-mall-order:8084}
-  payment:
-    url: ${SERVICES_PAYMENT_URL:http://galaxy-mall-payment:8085}
-
 galaxy:
   gateway:
     query:

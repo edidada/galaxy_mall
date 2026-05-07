@@ -7,25 +7,15 @@ import cn.wdidada.galaxymall.common.api.StockReleaseRequest;
 import cn.wdidada.galaxymall.common.api.StockRestockCompensateRequest;
 import cn.wdidada.galaxymall.common.api.StockRestockRequest;
 import cn.wdidada.galaxymall.common.api.StockView;
-import org.springframework.cloud.openfeign.FeignClient;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-
-@FeignClient(name = "stock-service", url = "${services.stock.url}")
 public interface StockClient {
 
-    @PostMapping("/api/stocks/reserve")
-    ApiResponse<StockView> reserve(@RequestBody StockDeductRequest request);
+    ApiResponse<StockView> reserve(StockDeductRequest request);
 
-    @PostMapping("/api/stocks/confirm")
-    ApiResponse<StockView> confirm(@RequestBody StockConfirmRequest request);
+    ApiResponse<StockView> confirm(StockConfirmRequest request);
 
-    @PostMapping("/api/stocks/release")
-    ApiResponse<StockView> release(@RequestBody StockReleaseRequest request);
+    ApiResponse<StockView> release(StockReleaseRequest request);
 
-    @PostMapping("/api/stocks/restock")
-    ApiResponse<StockView> restock(@RequestBody StockRestockRequest request);
+    ApiResponse<StockView> restock(StockRestockRequest request);
 
-    @PostMapping("/api/stocks/restock/compensate")
-    ApiResponse<StockView> compensateRestock(@RequestBody StockRestockCompensateRequest request);
+    ApiResponse<StockView> compensateRestock(StockRestockCompensateRequest request);
 }

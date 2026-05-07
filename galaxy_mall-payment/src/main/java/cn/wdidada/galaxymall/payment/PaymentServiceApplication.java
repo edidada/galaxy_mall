@@ -3,10 +3,12 @@ package cn.wdidada.galaxymall.payment;
 import cn.wdidada.galaxymall.common.client.OrderClient;
 import cn.wdidada.galaxymall.common.client.StockClient;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
+import org.apache.dubbo.config.annotation.DubboReference;
+import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Component;
 
 @SpringBootApplication(
         scanBasePackageClasses = PaymentServiceApplication.class,
@@ -16,7 +18,7 @@ import org.springframework.context.annotation.Bean;
                 "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration"
         }
 )
-@EnableFeignClients(clients = {OrderClient.class, StockClient.class})
+@EnableDubbo
 public class PaymentServiceApplication {
 
     public static void main(String[] args) {
@@ -29,8 +31,8 @@ public class PaymentServiceApplication {
     }
 
     @Bean
-    CloudPaymentService cloudPaymentService(OrderClient orderClient, MetricsCollector metricsCollector) {
-        return new CloudPaymentService(orderClient, metricsCollector);
+    CloudPaymentService cloudPaymentService(RemoteClients remoteClients, MetricsCollector metricsCollector) {
+        return new CloudPaymentService(remoteClients.orderClient(), metricsCollector);
     }
 
     @Bean
@@ -40,17 +42,34 @@ public class PaymentServiceApplication {
 
     @Bean
     SeataSagaRefundService seataSagaRefundService(
-            OrderClient orderClient,
-            StockClient stockClient,
+            RemoteClients remoteClients,
             RefundRecordRepository refundRecordRepository,
             MetricsCollector metricsCollector
     ) {
         return new SeataSagaRefundService(
-                orderClient,
+                remoteClients.orderClient(),
                 new SeataSagaPaymentRefundAction(refundRecordRepository, metricsCollector),
-                new SeataSagaStockRestoreAction(stockClient, metricsCollector),
-                new SeataSagaOrderRefundAction(orderClient, metricsCollector),
+                new SeataSagaStockRestoreAction(remoteClients.stockClient(), metricsCollector),
+                new SeataSagaOrderRefundAction(remoteClients.orderClient(), metricsCollector),
                 metricsCollector
         );
+    }
+
+    @Component
+    static final class RemoteClients {
+
+        @DubboReference(check = false, timeout = 3000)
+        private OrderClient orderClient;
+
+        @DubboReference(check = false, timeout = 3000)
+        private StockClient stockClient;
+
+        OrderClient orderClient() {
+            return orderClient;
+        }
+
+        StockClient stockClient() {
+            return stockClient;
+        }
     }
 }

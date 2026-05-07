@@ -4,12 +4,21 @@ spring:
   lifecycle:
     timeout-per-shutdown-phase: 30s
   cloud:
-    openfeign:
-      client:
-        config:
-          default:
-            connectTimeout: ${GALAXY_ORDER_FEIGN_CONNECT_TIMEOUT_MS:1000}
-            readTimeout: ${GALAXY_ORDER_FEIGN_READ_TIMEOUT_MS:3000}
+    nacos:
+      discovery:
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        register-enabled: ${NACOS_DISCOVERY_REGISTER_ENABLED:${NACOS_DISCOVERY_ENABLED:false}}
+        server-addr: ${NACOS_SERVER_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+    sentinel:
+      enabled: ${SENTINEL_ENABLED:true}
+      eager: true
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:}
+        port: ${SENTINEL_TRANSPORT_PORT:8714}
 
 server:
   port: 8084
@@ -19,12 +28,6 @@ rocketmq:
   name-server: ${ROCKETMQ_NAME_SERVER:127.0.0.1:9876}
   producer:
     group: ${ROCKETMQ_PRODUCER_GROUP:galaxy-order-producer}
-
-services:
-  product:
-    url: ${SERVICES_PRODUCT_URL:http://localhost:8082}
-  stock:
-    url: ${SERVICES_STOCK_URL:http://localhost:8083}
 
 galaxy:
   order:
@@ -54,6 +57,23 @@ seata:
     grouplist:
       default: ${SEATA_SERVER_ADDR:127.0.0.1:8091}
 
+dubbo:
+  application:
+    name: ${spring.application.name}
+    qos-enable: false
+    serialize-check-status: WARN
+  protocol:
+    name: tri
+    port: ${DUBBO_PORT:20884}
+  registry:
+    address: ${DUBBO_REGISTRY_ADDRESS:N/A}
+    register-mode: instance
+    group: ${DUBBO_GROUP:galaxy-mall}
+    parameters:
+      namespace: ${NACOS_NAMESPACE:}
+  consumer:
+    check: false
+
 management:
   endpoint:
     health:
@@ -67,4 +87,4 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,prometheus
+        include: health,info,prometheus,sentinel

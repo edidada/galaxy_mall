@@ -5,9 +5,3 @@ galaxy:
     rocketmq:
       topic: ${GALAXY_ORDER_ROCKETMQ_TOPIC:galaxy-order-submitted}
       consumer-group: ${GALAXY_ORDER_ROCKETMQ_CONSUMER_GROUP:galaxy-order-consumer}
-
-services:
-  product:
-    url: ${SERVICES_PRODUCT_URL:http://galaxy-mall-product:8082}
-  stock:
-    url: ${SERVICES_STOCK_URL:http://galaxy-mall-stock:8083}

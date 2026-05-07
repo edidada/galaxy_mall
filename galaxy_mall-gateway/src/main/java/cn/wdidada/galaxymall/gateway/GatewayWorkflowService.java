@@ -7,21 +7,14 @@ import cn.wdidada.galaxymall.common.api.OrderView;
 import cn.wdidada.galaxymall.common.api.PaymentView;
 import cn.wdidada.galaxymall.common.api.ProductView;
 import cn.wdidada.galaxymall.common.api.UserView;
+import cn.wdidada.galaxymall.common.client.OrderClient;
+import cn.wdidada.galaxymall.common.client.PaymentClient;
+import cn.wdidada.galaxymall.common.client.ProductClient;
+import cn.wdidada.galaxymall.common.client.UserClient;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import cn.wdidada.galaxymall.monitor.TraceLogger;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.web.client.RestClient;
 
 public final class GatewayWorkflowService {
-
-    private static final ParameterizedTypeReference<ApiResponse<UserView>> USER_RESPONSE =
-            new ParameterizedTypeReference<>() {};
-    private static final ParameterizedTypeReference<ApiResponse<ProductView>> PRODUCT_RESPONSE =
-            new ParameterizedTypeReference<>() {};
-    private static final ParameterizedTypeReference<ApiResponse<OrderView>> ORDER_RESPONSE =
-            new ParameterizedTypeReference<>() {};
-    private static final ParameterizedTypeReference<ApiResponse<PaymentView>> PAYMENT_RESPONSE =
-            new ParameterizedTypeReference<>() {};
 
     private final TokenBucketRateLimiter queryTokenBucket;
     private final TokenBucketRateLimiter orderTokenBucket;
@@ -29,26 +22,26 @@ public final class GatewayWorkflowService {
     private final WindowRateLimiter userLimiter;
     private final WaitingRoomService waitingRoomService;
     private final QueuePageService queuePageService = new QueuePageService();
-    private final RestClient userServiceRestClient;
-    private final RestClient productServiceRestClient;
-    private final RestClient orderServiceRestClient;
-    private final RestClient paymentServiceRestClient;
+    private final UserClient userClient;
+    private final ProductClient productClient;
+    private final OrderClient orderClient;
+    private final PaymentClient paymentClient;
     private final MetricsCollector metricsCollector;
     private final TraceLogger traceLogger;
 
     public GatewayWorkflowService(
-            RestClient userServiceRestClient,
-            RestClient productServiceRestClient,
-            RestClient orderServiceRestClient,
-            RestClient paymentServiceRestClient,
+            UserClient userClient,
+            ProductClient productClient,
+            OrderClient orderClient,
+            PaymentClient paymentClient,
             GatewayTrafficProperties trafficProperties,
             MetricsCollector metricsCollector,
             TraceLogger traceLogger
     ) {
-        this.userServiceRestClient = userServiceRestClient;
-        this.productServiceRestClient = productServiceRestClient;
-        this.orderServiceRestClient = orderServiceRestClient;
-        this.paymentServiceRestClient = paymentServiceRestClient;
+        this.userClient = userClient;
+        this.productClient = productClient;
+        this.orderClient = orderClient;
+        this.paymentClient = paymentClient;
         this.queryTokenBucket = new TokenBucketRateLimiter(
                 trafficProperties.getQuery().getTokenCapacity(),
                 trafficProperties.getQuery().getRefillPerSecond()
@@ -118,17 +111,11 @@ public final class GatewayWorkflowService {
     }
 
     public ApiResponse<OrderView> getOrder(String orderId) {
-        return orderServiceRestClient.get()
-                .uri("/api/orders/{orderId}", orderId)
-                .retrieve()
-                .body(ORDER_RESPONSE);
+        return orderClient.getOrder(orderId);
     }
 
     public ApiResponse<PaymentView> pay(String orderId) {
-        return paymentServiceRestClient.post()
-                .uri("/api/payments/{orderId}", orderId)
-                .retrieve()
-                .body(PAYMENT_RESPONSE);
+        return paymentClient.pay(orderId);
     }
 
     private ApiResponse<OrderView> submitOrder(GatewayOrderRequest request) {
@@ -136,11 +123,7 @@ public final class GatewayWorkflowService {
         if (!productResponse.success()) {
             return ApiResponse.failure(productResponse.message());
         }
-        return orderServiceRestClient.post()
-                .uri("/api/orders")
-                .body(new CreateOrderRequest(request.userId(), request.productId(), request.quantity()))
-                .retrieve()
-                .body(ORDER_RESPONSE);
+        return orderClient.createOrder(new CreateOrderRequest(request.userId(), request.productId(), request.quantity()));
     }
 
     private boolean allowFastLane(String userId) {
@@ -156,16 +139,10 @@ public final class GatewayWorkflowService {
     }
 
     private ApiResponse<UserView> getUser(String userId) {
-        return userServiceRestClient.get()
-                .uri("/api/users/{userId}", userId)
-                .retrieve()
-                .body(USER_RESPONSE);
+        return userClient.getUser(userId);
     }
 
     private ApiResponse<ProductView> getProduct(String productId) {
-        return productServiceRestClient.get()
-                .uri("/api/products/{productId}", productId)
-                .retrieve()
-                .body(PRODUCT_RESPONSE);
+        return productClient.getProduct(productId);
     }
 }

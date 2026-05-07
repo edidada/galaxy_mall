@@ -5,11 +5,13 @@ import cn.wdidada.galaxymall.common.client.ProductClient;
 import cn.wdidada.galaxymall.monitor.MetricsCollector;
 import cn.wdidada.galaxymall.monitor.TraceLogger;
 import java.time.Duration;
+import org.apache.dubbo.config.annotation.DubboReference;
+import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.cloud.openfeign.EnableFeignClients;
 import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Component;
 
 @SpringBootApplication(
         scanBasePackageClasses = SeckillServiceApplication.class,
@@ -19,7 +21,7 @@ import org.springframework.context.annotation.Bean;
                 "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration"
         }
 )
-@EnableFeignClients(clients = {OrderClient.class, ProductClient.class})
+@EnableDubbo
 public class SeckillServiceApplication {
 
     public static void main(String[] args) {
@@ -38,8 +40,7 @@ public class SeckillServiceApplication {
 
     @Bean(destroyMethod = "close")
     SeckillService seckillService(
-            OrderClient orderClient,
-            ProductClient productClient,
+            RemoteClients remoteClients,
             MetricsCollector metricsCollector,
             TraceLogger traceLogger,
             @Value("${galaxy.seckill.global-rate-limit:20000}") int globalRateLimit,
@@ -52,8 +53,8 @@ public class SeckillServiceApplication {
             @Value("${galaxy.seckill.terminal-retention-ms:300000}") long terminalRetentionMs
     ) {
         return new SeckillService(
-                orderClient,
-                productClient,
+                remoteClients.orderClient(),
+                remoteClients.productClient(),
                 metricsCollector,
                 traceLogger,
                 globalRateLimit,
@@ -65,5 +66,23 @@ public class SeckillServiceApplication {
                 Duration.ofMillis(productCacheTtlMs),
                 Duration.ofMillis(terminalRetentionMs)
         );
+    }
+
+    @Component
+    static final class RemoteClients {
+
+        @DubboReference(check = false, timeout = 3000)
+        private OrderClient orderClient;
+
+        @DubboReference(check = false, timeout = 2000)
+        private ProductClient productClient;
+
+        OrderClient orderClient() {
+            return orderClient;
+        }
+
+        ProductClient productClient() {
+            return productClient;
+        }
     }
 }

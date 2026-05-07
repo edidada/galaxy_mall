@@ -13,18 +13,20 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
 import javax.sql.DataSource;
+import org.apache.dubbo.config.annotation.DubboReference;
+import org.apache.dubbo.config.spring.context.annotation.EnableDubbo;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.jdbc.DataSourceBuilder;
-import org.springframework.cloud.openfeign.EnableFeignClients;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Component;
 
 @SpringBootApplication(
         scanBasePackageClasses = OrderServiceApplication.class,
@@ -34,7 +36,7 @@ import org.springframework.context.annotation.Bean;
                 "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration"
         }
 )
-@EnableFeignClients(clients = {ProductClient.class, StockClient.class})
+@EnableDubbo
 public class OrderServiceApplication {
 
     public static void main(String[] args) {
@@ -123,8 +125,7 @@ public class OrderServiceApplication {
     OrderAsyncConsumer orderAsyncConsumer(
             OrderStore orderStore,
             LocalBinlogRepository localBinlogRepository,
-            ProductClient productClient,
-            StockClient stockClient,
+            RemoteClients remoteClients,
             MetricsCollector metricsCollector,
             TraceLogger traceLogger,
             InMemoryMessageBus messageBus
@@ -132,8 +133,8 @@ public class OrderServiceApplication {
         OrderAsyncConsumer consumer = new OrderAsyncConsumer(
                 orderStore,
                 localBinlogRepository,
-                productClient,
-                stockClient,
+                remoteClients.productClient(),
+                remoteClients.stockClient(),
                 metricsCollector,
                 traceLogger
         );
@@ -146,16 +147,15 @@ public class OrderServiceApplication {
     OrderAsyncConsumer rocketMqOrderAsyncConsumer(
             OrderStore orderStore,
             LocalBinlogRepository localBinlogRepository,
-            ProductClient productClient,
-            StockClient stockClient,
+            RemoteClients remoteClients,
             MetricsCollector metricsCollector,
             TraceLogger traceLogger
     ) {
         OrderAsyncConsumer consumer = new OrderAsyncConsumer(
                 orderStore,
                 localBinlogRepository,
-                productClient,
-                stockClient,
+                remoteClients.productClient(),
+                remoteClients.stockClient(),
                 metricsCollector,
                 traceLogger
         );
@@ -196,26 +196,32 @@ public class OrderServiceApplication {
             LocalBinlogRepository localBinlogRepository,
             MetricsCollector metricsCollector,
             TraceLogger traceLogger,
-            ProductClient productClient,
+            RemoteClients remoteClients,
             OrderMessagePublisher orderMessagePublisher
     ) {
-        return new CloudOrderService(orderStore, localBinlogRepository, metricsCollector, traceLogger, productClient, orderMessagePublisher);
+        return new CloudOrderService(
+                orderStore,
+                localBinlogRepository,
+                metricsCollector,
+                traceLogger,
+                remoteClients.productClient(),
+                orderMessagePublisher
+        );
     }
 
     @Bean
     SeataTccOrderService seataTccOrderService(
             OrderStore orderStore,
             LocalBinlogRepository localBinlogRepository,
-            ProductClient productClient,
-            StockClient stockClient,
+            RemoteClients remoteClients,
             MetricsCollector metricsCollector,
             TraceLogger traceLogger
     ) {
         return new SeataTccOrderService(
                 orderStore,
                 localBinlogRepository,
-                productClient,
-                stockClient,
+                remoteClients.productClient(),
+                remoteClients.stockClient(),
                 metricsCollector,
                 traceLogger
         );
@@ -224,15 +230,33 @@ public class OrderServiceApplication {
     @Bean(destroyMethod = "close")
     OrderStockReleaseCompensationTask orderStockReleaseCompensationTask(
             LocalBinlogRepository localBinlogRepository,
-            StockClient stockClient,
+            RemoteClients remoteClients,
             MetricsCollector metricsCollector,
             @Value("${galaxy.order.compensation-interval-ms:1000}") long compensationIntervalMs
     ) {
         return new OrderStockReleaseCompensationTask(
                 localBinlogRepository,
-                stockClient,
+                remoteClients.stockClient(),
                 metricsCollector,
                 Duration.ofMillis(compensationIntervalMs)
         );
+    }
+
+    @Component
+    static final class RemoteClients {
+
+        @DubboReference(check = false, timeout = 2000)
+        private ProductClient productClient;
+
+        @DubboReference(check = false, timeout = 3000)
+        private StockClient stockClient;
+
+        ProductClient productClient() {
+            return productClient;
+        }
+
+        StockClient stockClient() {
+            return stockClient;
+        }
     }
 }

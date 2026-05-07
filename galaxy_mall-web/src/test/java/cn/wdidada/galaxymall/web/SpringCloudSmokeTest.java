@@ -1,9 +1,11 @@
 package cn.wdidada.galaxymall.web;
 
+import cn.wdidada.galaxymall.common.client.GalaxyServiceNames;
 import cn.wdidada.galaxymall.gateway.GatewayApplication;
 import cn.wdidada.galaxymall.order.OrderServiceApplication;
 import cn.wdidada.galaxymall.payment.PaymentServiceApplication;
 import cn.wdidada.galaxymall.product.ProductServiceApplication;
+import cn.wdidada.galaxymall.seckill.SeckillServiceApplication;
 import cn.wdidada.galaxymall.stock.StockServiceApplication;
 import cn.wdidada.galaxymall.user.UserServiceApplication;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -52,16 +54,9 @@ class SpringCloudSmokeTest {
         CONTEXTS.add(start(ProductServiceApplication.class, "19082"));
         CONTEXTS.add(start(StockServiceApplication.class, "19083", stockProperties()));
         CONTEXTS.add(start(OrderServiceApplication.class, "19084", orderProperties()));
-        CONTEXTS.add(start(PaymentServiceApplication.class, "19085",
-                "services.order.url=http://localhost:19084"));
-        CONTEXTS.add(start(GatewayApplication.class, "19080",
-                "services.user.url=http://localhost:19081",
-                "services.product.url=http://localhost:19082",
-                "services.stock.url=http://localhost:19083",
-                "services.order.url=http://localhost:19084",
-                "services.payment.url=http://localhost:19085",
-                "spring.cloud.gateway.filter.json-to-grpc.enabled=false",
-                "spring.autoconfigure.exclude=org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration"));
+        CONTEXTS.add(start(PaymentServiceApplication.class, "19085", paymentProperties()));
+        CONTEXTS.add(start(SeckillServiceApplication.class, "19086", seckillProperties()));
+        CONTEXTS.add(start(GatewayApplication.class, "19080", gatewayProperties()));
         awaitServiceReady("http://localhost:19080/actuator/health/readiness");
     }
 
@@ -73,10 +68,10 @@ class SpringCloudSmokeTest {
     }
 
     private static String[] stockProperties() {
+        List<String> properties = new ArrayList<>(localDiscoveryProperties());
         if (!REAL_INFRA) {
-            return new String[0];
+            return properties.toArray(String[]::new);
         }
-        List<String> properties = new ArrayList<>();
         properties.add("galaxy.stock.backend=redis");
         properties.add("spring.data.redis.host=" + REDIS_HOST);
         properties.add("spring.data.redis.port=" + REDIS_PORT);
@@ -88,9 +83,7 @@ class SpringCloudSmokeTest {
     }
 
     private static String[] orderProperties() {
-        List<String> properties = new ArrayList<>();
-        properties.add("services.product.url=http://localhost:19082");
-        properties.add("services.stock.url=http://localhost:19083");
+        List<String> properties = new ArrayList<>(localDiscoveryProperties());
         properties.add("galaxy.order.store-backend=jdbc-sharded");
         if (REAL_INFRA) {
             properties.add("galaxy.order.messaging-backend=rocketmq");
@@ -113,6 +106,21 @@ class SpringCloudSmokeTest {
             properties.add("galaxy.order.sharding.shards[1].username=sa");
             properties.add("galaxy.order.sharding.shards[1].password=");
         }
+        return properties.toArray(String[]::new);
+    }
+
+    private static String[] paymentProperties() {
+        return localDiscoveryProperties().toArray(String[]::new);
+    }
+
+    private static String[] seckillProperties() {
+        return localDiscoveryProperties().toArray(String[]::new);
+    }
+
+    private static String[] gatewayProperties() {
+        List<String> properties = new ArrayList<>(localDiscoveryProperties());
+        properties.add("spring.cloud.gateway.filter.json-to-grpc.enabled=false");
+        properties.add("spring.autoconfigure.exclude=org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration");
         return properties.toArray(String[]::new);
     }
 
@@ -252,19 +260,50 @@ class SpringCloudSmokeTest {
         properties.add("server.port=" + port);
         properties.add("spring.main.lazy-initialization=false");
         properties.add("logging.level.root=ERROR");
+        properties.add("spring.cloud.nacos.discovery.enabled=false");
+        properties.add("spring.cloud.nacos.discovery.register-enabled=false");
         if (REAL_INFRA) {
             properties.add("spring.profiles.active=uat");
         }
         if (!GatewayApplication.class.equals(applicationClass)) {
             properties.add("spring.cloud.gateway.enabled=false");
             properties.add("spring.cloud.gateway.filter.json-to-grpc.enabled=false");
-            properties.add("spring.autoconfigure.exclude=org.springframework.cloud.gateway.config.GatewayAutoConfiguration,org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration,org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration");
+            properties.add("spring.autoconfigure.exclude=" + defaultExcludes(applicationClass));
         }
         for (String extraProperty : extraProperties) {
             properties.add(extraProperty);
         }
         return new SpringApplicationBuilder(applicationClass)
                 .run(properties.stream().map(property -> "--" + property).toArray(String[]::new));
+    }
+
+    private static String defaultExcludes(Class<?> applicationClass) {
+        String gatewayExcludes =
+                "org.springframework.cloud.gateway.config.GatewayAutoConfiguration,"
+                        + "org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration,"
+                        + "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration";
+        if (REAL_INFRA) {
+            return gatewayExcludes;
+        }
+        if (OrderServiceApplication.class.equals(applicationClass) || PaymentServiceApplication.class.equals(applicationClass)) {
+            return gatewayExcludes + ",org.apache.seata.spring.boot.autoconfigure.SeataAutoConfiguration";
+        }
+        return gatewayExcludes;
+    }
+
+    private static List<String> localDiscoveryProperties() {
+        return List.of(
+                instanceProperty(GalaxyServiceNames.USER, "19081"),
+                instanceProperty(GalaxyServiceNames.PRODUCT, "19082"),
+                instanceProperty(GalaxyServiceNames.STOCK, "19083"),
+                instanceProperty(GalaxyServiceNames.ORDER, "19084"),
+                instanceProperty(GalaxyServiceNames.PAYMENT, "19085"),
+                instanceProperty(GalaxyServiceNames.SECKILL, "19086")
+        );
+    }
+
+    private static String instanceProperty(String serviceId, String port) {
+        return "spring.cloud.discovery.client.simple.instances." + serviceId + "[0].uri=http://localhost:" + port;
     }
 
     private static void prepareMysqlSchemas() throws Exception {
