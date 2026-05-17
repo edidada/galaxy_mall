@@ -4,11 +4,90 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import java.io.Serializable;
 
-public record GatewayOrderRequest(
-        @NotBlank String userId,
-        @NotBlank String productId,
-        @Min(1) int quantity,
-        @NotBlank String clientIp,
-        String queueToken
-) implements Serializable {
+public final class GatewayOrderRequest implements Serializable {
+
+    @NotBlank
+    private String userId;
+
+    @NotBlank
+    private String productId;
+
+    @Min(1)
+    private int quantity;
+
+    @NotBlank
+    private String clientIp;
+
+    private String queueToken;
+
+    public GatewayOrderRequest() {
+    }
+
+    public GatewayOrderRequest(String userId, String productId, int quantity, String clientIp, String queueToken) {
+        this.userId = userId;
+        this.productId = productId;
+        this.quantity = quantity;
+        this.clientIp = clientIp;
+        this.queueToken = queueToken;
+    }
+
+    public String userId() {
+        return userId;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String productId() {
+        return productId;
+    }
+
+    public String getProductId() {
+        return productId;
+    }
+
+    public void setProductId(String productId) {
+        this.productId = productId;
+    }
+
+    public int quantity() {
+        return quantity;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
+
+    public String clientIp() {
+        return clientIp;
+    }
+
+    public String getClientIp() {
+        return clientIp;
+    }
+
+    public void setClientIp(String clientIp) {
+        this.clientIp = clientIp;
+    }
+
+    public String queueToken() {
+        return queueToken;
+    }
+
+    public String getQueueToken() {
+        return queueToken;
+    }
+
+    public void setQueueToken(String queueToken) {
+        this.queueToken = queueToken;
+    }
 }

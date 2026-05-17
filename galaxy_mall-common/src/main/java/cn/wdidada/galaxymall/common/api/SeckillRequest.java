@@ -5,10 +5,76 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import java.io.Serializable;
 
-public record SeckillRequest(
-        @NotBlank String userId,
-        @NotBlank String productId,
-        @Min(1) @Max(1) int quantity,
-        @NotBlank String clientIp
-) implements Serializable {
+public final class SeckillRequest implements Serializable {
+
+    @NotBlank
+    private String userId;
+
+    @NotBlank
+    private String productId;
+
+    @Min(1)
+    @Max(1)
+    private int quantity;
+
+    @NotBlank
+    private String clientIp;
+
+    public SeckillRequest() {
+    }
+
+    public SeckillRequest(String userId, String productId, int quantity, String clientIp) {
+        this.userId = userId;
+        this.productId = productId;
+        this.quantity = quantity;
+        this.clientIp = clientIp;
+    }
+
+    public String userId() {
+        return userId;
+    }
+
+    public String getUserId() {
+        return userId;
+    }
+
+    public void setUserId(String userId) {
+        this.userId = userId;
+    }
+
+    public String productId() {
+        return productId;
+    }
+
+    public String getProductId() {
+        return productId;
+    }
+
+    public void setProductId(String productId) {
+        this.productId = productId;
+    }
+
+    public int quantity() {
+        return quantity;
+    }
+
+    public int getQuantity() {
+        return quantity;
+    }
+
+    public void setQuantity(int quantity) {
+        this.quantity = quantity;
+    }
+
+    public String clientIp() {
+        return clientIp;
+    }
+
+    public String getClientIp() {
+        return clientIp;
+    }
+
+    public void setClientIp(String clientIp) {
+        this.clientIp = clientIp;
+    }
 }
