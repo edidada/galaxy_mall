@@ -8,6 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
@@ -35,33 +36,37 @@ public class GatewayApplication {
     @Bean
     RestClient userServiceRestClient(
             @Value("${services.user.url}") String baseUrl,
-            GatewayTrafficProperties properties
+            GatewayTrafficProperties properties,
+            ClientHttpRequestInterceptor traceRestClientInterceptor
     ) {
-        return restClient(baseUrl, properties);
+        return restClient(baseUrl, properties, traceRestClientInterceptor);
     }
 
     @Bean
     RestClient productServiceRestClient(
             @Value("${services.product.url}") String baseUrl,
-            GatewayTrafficProperties properties
+            GatewayTrafficProperties properties,
+            ClientHttpRequestInterceptor traceRestClientInterceptor
     ) {
-        return restClient(baseUrl, properties);
+        return restClient(baseUrl, properties, traceRestClientInterceptor);
     }
 
     @Bean
     RestClient orderServiceRestClient(
             @Value("${services.order.url}") String baseUrl,
-            GatewayTrafficProperties properties
+            GatewayTrafficProperties properties,
+            ClientHttpRequestInterceptor traceRestClientInterceptor
     ) {
-        return restClient(baseUrl, properties);
+        return restClient(baseUrl, properties, traceRestClientInterceptor);
     }
 
     @Bean
     RestClient paymentServiceRestClient(
             @Value("${services.payment.url}") String baseUrl,
-            GatewayTrafficProperties properties
+            GatewayTrafficProperties properties,
+            ClientHttpRequestInterceptor traceRestClientInterceptor
     ) {
-        return restClient(baseUrl, properties);
+        return restClient(baseUrl, properties, traceRestClientInterceptor);
     }
 
     @Bean
@@ -85,13 +90,18 @@ public class GatewayApplication {
         );
     }
 
-    private RestClient restClient(String baseUrl, GatewayTrafficProperties properties) {
+    private RestClient restClient(
+            String baseUrl,
+            GatewayTrafficProperties properties,
+            ClientHttpRequestInterceptor traceInterceptor
+    ) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(properties.getHttp().getConnectTimeoutMs());
         requestFactory.setReadTimeout(properties.getHttp().getReadTimeoutMs());
         return RestClient.builder()
                 .baseUrl(baseUrl)
                 .requestFactory(requestFactory)
+                .requestInterceptor(traceInterceptor)
                 .build();
     }
 }

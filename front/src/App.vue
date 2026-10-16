@@ -20,6 +20,13 @@
             </div>
         </header>
 
+        <!-- 全链路追踪横幅：显示最近一次请求的 TraceId，可在各服务日志 grep 此 ID 串联 -->
+        <div class="trace-banner" v-if="lastTraceId">
+            <span class="trace-label">本次请求 TraceId</span>
+            <code class="trace-id">{{ lastTraceId }}</code>
+            <span class="trace-hint">在各微服务日志中 grep 此 ID，即可串联「前端 → 网关 → product/user/order…」的完整链路</span>
+        </div>
+
         <!-- 主内容区 -->
         <main class="main-content">
             <div class="container">
@@ -331,7 +338,8 @@ export default {
             apiTestOrderId: '',
             apiTestPaymentOrderId: '',
             apiResult: null,
-            toast: { show: false, message: '', type: 'success' }
+            toast: { show: false, message: '', type: 'success' },
+            lastTraceId: ''
         };
     },
     computed: {
@@ -341,6 +349,9 @@ export default {
     },
     mounted() {
         this.fetchUser();
+        window.addEventListener('galaxy-trace', (e) => {
+            this.lastTraceId = e.detail;
+        });
     },
     methods: {
         showToast(msg, type = 'success') {
@@ -627,6 +638,42 @@ body {
     padding: 4px 12px;
     border-radius: 20px;
     font-weight: 600;
+}
+
+/* 全链路追踪横幅 */
+.trace-banner {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    max-width: 1200px;
+    margin: 16px auto 0;
+    padding: 12px 20px;
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 12px;
+    color: #fff;
+    font-size: 13px;
+    backdrop-filter: blur(10px);
+}
+
+.trace-label {
+    font-weight: 700;
+    color: #ffe082;
+}
+
+.trace-id {
+    font-family: monospace;
+    font-size: 14px;
+    background: rgba(0,0,0,0.35);
+    padding: 4px 10px;
+    border-radius: 8px;
+    color: #90caf9;
+    user-select: all;
+}
+
+.trace-hint {
+    opacity: 0.85;
 }
 
 /* 主内容 */
