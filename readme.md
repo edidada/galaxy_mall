@@ -38,6 +38,7 @@ Error response from daemon: No such image: galaxy-mall/front:latest
 ibqo@ibqodeMBP front % 
 
 这套监控在 192.168.31.171 上已经跑通，但不是你最开始那 3个文件原样可用。
+（注：当时 k3s 是单节点、就跑在 `192.168.31.171` 这台物理机上；现在 `.171` 是 Proxmox 宿主，k3s 在其 4 台 VM 上 —— 见下方 2026-10-17 更新。）
 我改了这几处并已推到 origin/k3s_uat_8080：
 
 - 25df782 Fix k3s monitoring manifests for default namespace
@@ -57,8 +58,13 @@ live 集群上的最终情况是：
 - 远端 k3s 节点 拉不到 prometheus-community chart repo，所以 HelmChart 直接装会失败。我后来改成 本地渲染 kube-prometheus-stack，上传后在服务器 apply，并先单独装了
   CRD。
 - Prometheus 和 Grafana 现在都起来了：
-  - Grafana: http://192.168.31.171:30300
-  - Prometheus: http://192.168.31.171:30090
+  - Grafana: http://192.168.31.77:30300
+  - Prometheus: http://192.168.31.77:30090
+
+> ⚠️ 2026-10-17 更新：上面的 `.171:30300/30090` 是当年**单节点 k3s（就跑在 192.168.31.171 那台物理机上）**的地址，现已失效。
+> 当前 `192.168.31.171` 是 Proxmox VE 宿主（只提供 `:8006` Web 台 / `:22` SSH / `:19999` Netdata），k3s 跑在它上面的 4 台 VM 里。
+> 且**当前集群尚未部署 Prometheus/Grafana**（计划见 `docs/k3s-seckill-message-monitor-deploy-plan.md` 第 2 章），部署后按上面 `.77:30300/30090` 访问。
+> 当前可用的对外入口与访问方式见 `docs/k3s-access-from-mac.md`。
 
 最关键的验证结果：
 
@@ -107,14 +113,18 @@ live 集群上的最终情况是：
 
 command: chmod +x /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_get.sh && chmod +x /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_post.sh undefined
           
+> ⚠️ 2026-10-17 更新：下列命令里的 `192.168.31.171:30897` 是**已失效的旧地址**（`.171` 现为 Proxmox 宿主），已替换为当前 Ingress 域名。
+> 使用前提：先 `echo "192.168.31.77 mall.192.168.31.77.nip.io" | sudo tee -a /etc/hosts`；
+> 不想改 hosts 就改用 `curl -H "Host: mall.192.168.31.77.nip.io" "http://192.168.31.77/api/gateway/..."`。
+
 现在让我们运行 GET 测试脚本：
-command: curl --noproxy "*" --connect-timeout 5 -s -w "%{http_code}" "http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1" undefined
+command: curl --noproxy "*" --connect-timeout 5 -s -w "%{http_code}" "http://mall.192.168.31.77.nip.io/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1" undefined
           
 太好了！服务可以正常访问！让我们用更小规模的并发数重新运行测试，这样更快看到结果：
-command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_get.sh "http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1" 1000 50 undefined
+command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_get.sh "http://mall.192.168.31.77.nip.io/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1" 1000 50 undefined
           
 好的！GET 请求测试完成！现在让我们运行 POST 请求的测试：
-command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_post.sh "http://192.168.31.171:30897/api/gateway/orders" 500 50 undefined
+command: /Users/ibqo/Develop/git/github/java/galaxy_mall/curl_tps_post.sh "http://mall.192.168.31.77.nip.io/api/gateway/orders" 500 50 undefined
           
 ## 测试结果总结
 我们成功运行了两个 TPS 测试脚本，以下是初步结论：
