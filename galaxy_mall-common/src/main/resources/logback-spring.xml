@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!--
+      全链路追踪日志配置（放在 common 里，所有依赖 common 的服务自动生效）。
+
+      1) 统一 pattern 带 [trace=xxx]：取自 MDC 的 traceId，缺失时显示 NO，便于 grep 串联。
+      2) 独立 logger galaxy.trace：由 TraceServletFilter / 网关 WebFilter 输出每请求访问日志
+         （方法、路径、状态码、耗时）。因为本项目各服务默认不打印按请求的日志，
+         没有它 traceId 就无从观察。
+         级别可用环境变量 GALAXY_TRACE_LEVEL 调整，无需重新构建镜像：
+           GALAXY_TRACE_LEVEL=INFO（默认，便于演示/排查）
+           GALAXY_TRACE_LEVEL=OFF（100w TPS 压测时彻底关闭，避免日志 IO 影响结果）
+    -->
+    <springProperty scope="context" name="GALAXY_TRACE_LEVEL" source="galaxy.trace.level" defaultValue="INFO"/>
+
+    <property name="CONSOLE_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level [trace=%X{traceId:-NO}] %logger{36} - %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 访问日志（承载 traceId），级别由 GALAXY_TRACE_LEVEL 控制 -->
+    <logger name="galaxy.trace" level="${GALAXY_TRACE_LEVEL}" additivity="true"/>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

@@ -9,7 +9,8 @@
 
 ## Deployment Assumptions
 - Current branch: `k3s_uat_8080`
-- Current live cluster: single-node k3s on `192.168.31.171`
+- Current live cluster: 4-node k3s (`v1.35.4+k3s1`) on Proxmox VMs — master `192.168.31.77`, workers `192.168.31.211` / `192.168.31.251` / `192.168.31.88`
+  - 早期是跑在 `192.168.31.171` 这台物理机上的单节点 k3s；该地址现为 Proxmox VE 宿主（只提供 `:8006` / `:22` / `:19999`），已不再承载 k3s 端口
 - Current application convention: Java services listen on `8080` inside k3s
 - Current seckill implementation stores request state in memory, so `seckill` should stay at `1` replica for now
 

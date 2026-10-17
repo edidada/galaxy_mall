@@ -1,0 +1,97 @@
+name: k3s Matrix Build
+
+# 触发：k3s 分支 / main 推送或 PR，也支持手动触发
+on:
+  push:
+    branches: [ "k3s_uat_8080", "k3s", "main" ]
+  pull_request:
+    branches: [ "k3s_uat_8080", "k3s", "main" ]
+  workflow_dispatch:
+
+jobs:
+  # ---------------------------------------------------------------
+  # job 1：多 OS / 多 OS 版本 / 多 JDK 编译矩阵
+  # 目的：验证代码在不同操作系统与 JDK（21 / 24）下都能编译通过。
+  # 说明：项目 java.version=17（release=17），所以用高版本 JDK 编译目标仍是 17 字节码。
+  #       JDK 24 对本项目的 Spring Boot 3.2.5 属于超出官方支持范围（3.2.x 官方支持到 21），
+  #       因此 java=24 的格子标记为 continue-on-error，避免实验性 JDK 把整个 CI 打红。
+  # ---------------------------------------------------------------
+  build:
+    name: ${{ matrix.os }} / JDK ${{ matrix.java }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.java == '24' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-22.04
+          - ubuntu-24.04
+          - windows-2019
+          - windows-2022
+          - macos-13
+          - macos-14
+          - macos-15
+        java: [ '21', '24' ]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ matrix.java }} (temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ matrix.java }}
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn -B -ntp -DskipTests package --file pom.xml
+
+      - name: List built jars
+        shell: bash
+        run: ls -lh galaxy_mall-*/target/*.jar || true
+
+  # ---------------------------------------------------------------
+  # job 2：k3s 镜像打包并导出 tar
+  # 目的：给 k3s 集群准备镜像（集群没有可用的镜像仓库，靠 tar + ctr images import 分发）。
+  # 说明：macOS runner 没有 Docker daemon，Windows runner 默认跑 Windows 容器，
+  #       都无法产出 Linux/amd64 的服务镜像，所以打包 job 固定在 Linux runner 上。
+  # ---------------------------------------------------------------
+  k3s-package:
+    name: k3s package (image tar)
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21 (temurin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Package jars
+        run: mvn -B -ntp -DskipTests package --file pom.xml
+
+      - name: Build service images
+        run: |
+          set -e
+          for m in gateway user product stock order payment; do
+            jar=$(ls galaxy_mall-$m/target/*.jar | head -1)
+            docker build \
+              -f Dockerfile \
+              --build-arg JAR_FILE=galaxy_mall-$m/target/$(basename "$jar") \
+              -t galaxy-mall/$m:k3s .
+          done
+
+      - name: Export images to tar
+        run: |
+          set -e
+          mkdir -p k3s-images
+          for m in gateway user product stock order payment; do
+            docker save -o k3s-images/$m.tar galaxy-mall/$m:k3s
+          done
+
+      - name: ls 查看导出的 tar
+        run: |
+          ls -lh k3s-images/
+          du -sh k3s-images/

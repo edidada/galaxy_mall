@@ -59,43 +59,59 @@ sudo /usr/local/bin/k3s kubectl rollout status deployment/order
 sudo /usr/local/bin/k3s kubectl logs deployment/order | tail -n 50
 ```
 
-## 30897 端口怎么访问
+## 怎么访问网关（2026-10-17 重写）
 
-你当前 `gateway` 的 Service 是：
+> ⚠️ 本节原文基于「`gateway` 是 NodePort `8080:30897`」，该 Service **已不存在**（实测 `30897` 端口关闭）。
+> 现在 `galaxy-mall-gateway` 是 **ClusterIP:8080**，由 **Traefik Ingress** 对外暴露。
+> 完整入口说明见 `docs/k3s-access-from-mac.md`。
 
-```text
-gateway  NodePort  8080:30897/TCP
+当前集群（4 节点，Ingress 已覆盖全部节点）：
+
+| 节点 | IP |
+|---|---|
+| k3s-master | `192.168.31.77` |
+| k3s-worker1 | `192.168.31.211` |
+| k3s-worker2 | `192.168.31.251` |
+| k3s-worker3 | `192.168.31.88` |
+
+三种访问方式：
+
+**① Ingress 域名（首选）** —— 先写 hosts：
+
+```bash
+echo "192.168.31.77 mall.192.168.31.77.nip.io" | sudo tee -a /etc/hosts
+curl "http://mall.192.168.31.77.nip.io/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1"
 ```
 
-这表示：
+**② IP + Host 头（不依赖 DNS）** —— 压测推荐，4 个节点 IP 任选：
 
-- Pod 内应用监听 `8080`
-- k3s 节点对外暴露 `30897`
-
-所以访问格式是：
-
-```text
-http://<k3s节点IP>:30897
+```bash
+curl -H "Host: mall.192.168.31.77.nip.io" \
+  "http://192.168.31.77/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1"
 ```
 
-如果你的机器 IP 是 `192.168.31.10`，那么网关基地址就是：
+**③ front NodePort（最省事）** —— 同源转发 `/api/gateway/**`，无需 Host 头：
 
-```text
-http://192.168.31.10:30897
+```bash
+curl "http://192.168.31.77:30080/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1"
 ```
 
-结合当前仓库网关代码，常用接口是：
+常用接口：
 
 - `GET /api/gateway/products/{productId}?userId=u100&clientIp=10.0.0.1`
 - `POST /api/gateway/orders`
+- `GET /api/gateway/orders/{orderId}`
+- `POST /api/gateway/payments/{orderId}`
 - `GET /edge/products/{productId}`
 - `POST /edge/orders`
 
 示例：
 
 ```bash
-curl "http://192.168.31.10:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1"
-curl "http://192.168.31.10:30897/edge/products/sku-iphone"
+curl -H "Host: mall.192.168.31.77.nip.io" \
+  "http://192.168.31.77/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1"
+curl -H "Host: mall.192.168.31.77.nip.io" \
+  "http://192.168.31.77/edge/products/sku-iphone"
 ```
 
 ## 验证顺序
@@ -103,7 +119,8 @@ curl "http://192.168.31.10:30897/edge/products/sku-iphone"
 先验证网关：
 
 ```bash
-curl "http://<k3s节点IP>:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1"
+curl -H "Host: mall.192.168.31.77.nip.io" \
+  "http://192.168.31.77/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1"
 ```
 
 再验证 RocketMQ：
@@ -116,7 +133,8 @@ sudo /usr/local/bin/k3s kubectl -n middleware logs rocketmq-broker-0
 最后验证下单是否走 MQ：
 
 ```bash
-curl -X POST "http://<k3s节点IP>:30897/api/gateway/orders" \
+curl -X POST "http://192.168.31.77/api/gateway/orders" \
+  -H "Host: mall.192.168.31.77.nip.io" \
   -H "Content-Type: application/json" \
   -d '{"userId":"u100","productId":"sku-iphone","quantity":1,"clientIp":"10.0.0.1"}'
 ```

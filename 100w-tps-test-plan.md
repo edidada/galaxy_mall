@@ -125,20 +125,29 @@ sudo cp wrk /usr/local/bin/
 ```
 
 ### 8.2 GET 测试命令
+
+> 2026-10-17 更新：旧地址 `http://192.168.31.171:30897` 已失效（`.171` 是 Proxmox 宿主，不承载 k3s 端口）。
+> 现在走 Traefik Ingress：用节点 IP + `-H "Host: mall.192.168.31.77.nip.io"`，
+> **不要用域名压测**（本机 DNS 可能被代理 fake-ip 接管，压测结果会失真）。
+> 节点 IP 取 `.77 / .211 / .251 / .88` 任意一个（Ingress 已覆盖 4 个节点）；URL 记得加引号，否则 `&` 会被 shell 吃掉。
+
 ```bash
 # 小规模预热
-wrk -t4 -c100 -d10s -R10000 http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1
+wrk -H "Host: mall.192.168.31.77.nip.io" -t4 -c100 -d10s -R10000 \
+  "http://192.168.31.77/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1"
 
 # 中等规模
-wrk -t8 -c1000 -d30s -R100000 http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1
+wrk -H "Host: mall.192.168.31.77.nip.io" -t8 -c1000 -d30s -R100000 \
+  "http://192.168.31.77/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1"
 
 # 大规模测试
-wrk -t16 -c10000 -d60s -R1000000 http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1
+wrk -H "Host: mall.192.168.31.77.nip.io" -t16 -c10000 -d60s -R1000000 \
+  "http://192.168.31.77/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1"
 ```
 
 ### 8.3 POST 测试命令
 ```bash
-wrk -t8 -c500 -d30s -s wrk2_post.lua http://192.168.31.171:30897
+wrk -H "Host: mall.192.168.31.77.nip.io" -t8 -c500 -d30s -s wrk2_post.lua http://192.168.31.77
 ```
 
 ## 九、监控命令

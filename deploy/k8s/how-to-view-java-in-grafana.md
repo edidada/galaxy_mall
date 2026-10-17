@@ -8,7 +8,8 @@
    ```bash
    kubectl port-forward -n monitoring svc/prometheus-kube-prometheus-prometheus 9090:9090
    ```
-2. 打开 `http://localhost:9090` 或 `http://192.168.31.171:30090`
+2. 打开 `http://localhost:9090` 或 `http://192.168.31.77:30090`
+   > ⚠️ 2026-10-17：旧地址 `http://192.168.31.171:30090` 已失效（`.171` 现为 Proxmox 宿主）。且**当前集群尚未部署 Prometheus**，需先按 `docs/k3s-seckill-message-monitor-deploy-plan.md` 第 2 章部署（计划用 NodePort `30090`）。
 3. 在 "Graph" 或 "Table" 视图下，搜索 `jvm_memory_used_bytes` 查看是否有指标数据
 
 ### 确认指标正常
@@ -23,9 +24,15 @@
 ## 1. 在 Grafana 查看 Java 服务信息的步骤
 
 ### 1.1 登录 Grafana
-- 地址：`http://192.168.31.171:30300`
+- 地址：`http://192.168.31.77:30300`
 - 用户名：`admin`
 - 密码：`5Edidada`
+
+> ⚠️ 2026-10-17：旧地址 `http://192.168.31.171:30300` 已失效（`.171` 现为 Proxmox 宿主）。
+> 且**当前集群尚未部署 Grafana**（`kubectl -n monitoring get pod` 无此组件），需先按
+> `docs/k3s-seckill-message-monitor-deploy-plan.md` 第 2 章部署 kube-prometheus-stack（计划 NodePort `30300`）。
+> 另外本文档里 `port-forward -n monitoring` 是**当年**的命名空间，当前中间件在 `middleware` 命名空间，
+> 监控组件尚未安装，端口转发命令需按实际部署后的命名空间调整。
 
 ### 1.2 进入 Dashboards
 1. 点击左侧菜单的 **Dashboards**

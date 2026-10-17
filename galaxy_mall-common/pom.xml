@@ -25,5 +25,17 @@
             <groupId>jakarta.validation</groupId>
             <artifactId>jakarta.validation-api</artifactId>
         </dependency>
+        <!-- 仅编译期需要：servlet 过滤器用；provided 不传递，运行时由各 servlet 服务的 starter 提供 -->
+        <dependency>
+            <groupId>jakarta.servlet</groupId>
+            <artifactId>jakarta.servlet-api</artifactId>
+            <scope>provided</scope>
+        </dependency>
+        <!-- 仅编译期需要：Feign 拦截器用；feign-core 经 spring-cloud-openfeign-core 间接提供 -->
+        <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-core</artifactId>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 </project>

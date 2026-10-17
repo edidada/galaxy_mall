@@ -2,10 +2,15 @@
 set -euo pipefail
 
 unset http_proxy https_proxy HTTP_PROXY HTTPS_PROXY all_proxy ALL_PROXY
-export no_proxy="192.168.31.171,localhost,127.0.0.1"
+export no_proxy="192.168.31.77,192.168.31.211,192.168.31.251,192.168.31.88,mall.192.168.31.77.nip.io,localhost,127.0.0.1"
 export NO_PROXY="$no_proxy"
 
-URL="${1:-http://192.168.31.171:30897/api/gateway/orders}"
+# 默认走 front 的 NodePort（同源转发 /api/gateway，不需要 Host 头、不需要 DNS 解析）
+# ⚠️ 旧默认值 http://192.168.31.171:30897 已失效（.171 是 Proxmox 宿主，不承载 k3s 端口）
+# 压测建议显式传 Ingress 地址：
+#   ./curl_tps_post.sh "http://mall.192.168.31.77.nip.io/api/gateway/orders"
+#   前提：echo "192.168.31.77 mall.192.168.31.77.nip.io" | sudo tee -a /etc/hosts
+URL="${1:-http://192.168.31.77:30080/api/gateway/orders}"
 TOTAL="${2:-2000}"
 CONCURRENCY="${3:-100}"
 

@@ -1,5 +1,15 @@
 # API 文档
-http://192.168.31.171:30897/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1
+
+> 2026-10-17 更新：当前 k3s 集群（4 节点）的对外入口是 Traefik Ingress，
+> 域名 `mall.192.168.31.77.nip.io`（需写 hosts 解析，见 `docs/k3s-access-from-mac.md`）。
+> 不依赖 DNS 的等价写法（压测推荐）：
+> `curl --noproxy "*" -H "Host: mall.192.168.31.77.nip.io" "http://192.168.31.77/api/gateway/..."`
+> ⚠️ 旧地址 `http://192.168.31.171:30897` **已失效**（`.171` 是 Proxmox 宿主，不承载 k3s 端口）。
+> 下文各章节的 `http://localhost:808X` 是**服务自身端口**说明，从集群外访问请走上面的入口。
+
+请求示例：
+
+http://mall.192.168.31.77.nip.io/api/gateway/products/sku-iphone?userId=u100&clientIp=10.0.0.1
 {
 "success": true,
 "message": "cache-or-db-hit",

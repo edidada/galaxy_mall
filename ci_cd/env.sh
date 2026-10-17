@@ -80,7 +80,7 @@ export KUBECTL_BIN="${KUBECTL_BIN:-/usr/local/bin/k3s kubectl}"
 export HELM_BIN="${HELM_BIN:-helm}"
 export RENDER_DIR="${RENDER_DIR:-${CI_CD_ROOT}/rendered}"
 
-export REMOTE_SSH_TARGET="${REMOTE_SSH_TARGET:-wdidada@192.168.31.171}"
+export REMOTE_SSH_TARGET="${REMOTE_SSH_TARGET:-wdidada@192.168.31.77}"
 export REMOTE_SSH_PASSWORD="${REMOTE_SSH_PASSWORD:-5Edidada}"
 export REMOTE_REPO_DIR="${REMOTE_REPO_DIR:-/home/wdidada/galaxy_mall}"
 export REMOTE_CI_CD_DIR="${REMOTE_CI_CD_DIR:-${REMOTE_REPO_DIR}/ci_cd}"

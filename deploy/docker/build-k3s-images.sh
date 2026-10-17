@@ -13,12 +13,12 @@ SKIP_PACKAGE="${SKIP_PACKAGE:-false}"
 
 services=(
   "gateway:galaxy_mall-gateway:8080"
-  "galaxy-mall-user:galaxy_mall-user:8080"
-  "galaxy-mall-product:galaxy_mall-product:8080"
+  "user:galaxy_mall-user:8081"
+  "product:galaxy_mall-product:8082"
   "galaxy-mall-seckill:galaxy_mall-seckill:8080"
-  "galaxy-mall-stock:galaxy_mall-stock:8080"
-  "galaxy-mall-order:galaxy_mall-order:8080"
-  "galaxy-mall-payment:galaxy_mall-payment:8080"
+  "stock:galaxy_mall-stock:8083"
+  "order:galaxy_mall-order:8084"
+  "payment:galaxy_mall-payment:8085"
 )
 
 if [[ "${SKIP_PACKAGE}" != "true" ]]; then
@@ -59,10 +59,9 @@ images ready.
 
 import into k3s:
   sudo k3s ctr images import ${OUTPUT_DIR}/gateway-${IMAGE_TAG}.tar
-  sudo k3s ctr images import ${OUTPUT_DIR}/galaxy-mall-user-${IMAGE_TAG}.tar
-  sudo k3s ctr images import ${OUTPUT_DIR}/galaxy-mall-product-${IMAGE_TAG}.tar
-  sudo k3s ctr images import ${OUTPUT_DIR}/galaxy-mall-seckill-${IMAGE_TAG}.tar
-  sudo k3s ctr images import ${OUTPUT_DIR}/galaxy-mall-stock-${IMAGE_TAG}.tar
-  sudo k3s ctr images import ${OUTPUT_DIR}/galaxy-mall-order-${IMAGE_TAG}.tar
-  sudo k3s ctr images import ${OUTPUT_DIR}/galaxy-mall-payment-${IMAGE_TAG}.tar
+  sudo k3s ctr images import ${OUTPUT_DIR}/user-${IMAGE_TAG}.tar
+  sudo k3s ctr images import ${OUTPUT_DIR}/product-${IMAGE_TAG}.tar
+  sudo k3s ctr images import ${OUTPUT_DIR}/stock-${IMAGE_TAG}.tar
+  sudo k3s ctr images import ${OUTPUT_DIR}/order-${IMAGE_TAG}.tar
+  sudo k3s ctr images import ${OUTPUT_DIR}/payment-${IMAGE_TAG}.tar
 EOF
