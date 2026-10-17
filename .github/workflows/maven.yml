@@ -31,5 +31,7 @@ jobs:
       # SpringCloudSmokeTest 是集成冒烟测试：在一个 JVM 里同时启动 6 个 Spring Boot 服务，
       # 依赖 MySQL / Redis / RocketMQ 等本地基础设施，GitHub Runner 上不具备这些能力（自 05 月起一直失败）。
       # 这里仅排除该集成测试，其余单元测试照常执行，避免有价值的单测被 -DskipTests 一并关掉。
-      run: mvn -B -ntp package --file pom.xml -Dtest='!SpringCloudSmokeTest' -DfailIfNoTests=false
+      # 注意：属性名必须是 surefire.failIfNoSpecifiedTests（单写 failIfNoTests 无效），
+      # 否则 common 等没有匹配测试的模块会报 "No tests matching pattern ... were executed!"。
+      run: mvn -B -ntp package --file pom.xml -Dtest='!SpringCloudSmokeTest' -Dsurefire.failIfNoSpecifiedTests=false
 
