@@ -1,0 +1,53 @@
+name: Proxmox k3s Images
+
+# 在 GitHub Runner 上执行仓库自带的 deploy/docker/build-k3s-images.sh：
+#   mvn package -> docker build 各个服务镜像 -> docker save 导出 tar
+# 然后 ls 查看导出的 tar（用于 k3s ctr images import 分发到 Proxmox 上的集群节点）
+#
+# 说明：实际的「导入到集群」这一步无法在 GitHub 托管 Runner 上完成，
+#       因为 Runner 在公网，访问不到 192.168.31.x 这个内网。
+#       若要在 CI 里完成部署，需要在内网机器上安装 self-hosted runner，
+#       或改用 VPN/端口映射把节点暴露出来。
+on:
+  push:
+    branches: [ "k3s_uat_8080" ]
+  workflow_dispatch:
+
+jobs:
+  build-images:
+    name: build images + export tar
+    # 不用 ubuntu-latest：GitHub 宣布 ubuntu-latest 将于 2026-10-19 起迁移到 Ubuntu 26，
+    # 为避免届时行为突变，这里钉死为 ubuntu-24.04。
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Show runner disk space
+        run: df -h
+
+      - name: Run deploy/docker/build-k3s-images.sh
+        env:
+          IMAGE_NAMESPACE: galaxy-mall
+          IMAGE_TAG: ${{ github.run_number }}
+          SAVE_TAR: "true"
+        run: bash deploy/docker/build-k3s-images.sh
+
+      - name: ls 查看导出的 tar
+        run: |
+          set -e
+          echo "== deploy/docker/output 内容 =="
+          ls -lh deploy/docker/output/
+          echo "== 总大小 =="
+          du -sh deploy/docker/output/
+
+      - name: 列出本机镜像
+        run: docker images | grep "${IMAGE_NAMESPACE:-galaxy-mall}" || true
