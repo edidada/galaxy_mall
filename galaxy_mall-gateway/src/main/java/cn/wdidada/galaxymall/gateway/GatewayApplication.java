@@ -90,6 +90,30 @@ public class GatewayApplication {
         );
     }
 
+    /** 埋点接收器：容量见 {@code galaxy.collect.buffer-capacity}，只存内存。 */
+    @Bean
+    CollectService collectService(
+            @Value("${galaxy.collect.buffer-capacity:5000}") int bufferCapacity
+    ) {
+        return new CollectService(bufferCapacity);
+    }
+
+    /** 前台编排只依赖 user + product 两个下游，与压测编排分开两套 bean。 */
+    @Bean
+    StorefrontWorkflowService storefrontWorkflowService(
+            @Qualifier("userServiceRestClient") RestClient userServiceRestClient,
+            @Qualifier("productServiceRestClient") RestClient productServiceRestClient,
+            MetricsCollector metricsCollector,
+            TraceLogger traceLogger
+    ) {
+        return new StorefrontWorkflowService(
+                userServiceRestClient,
+                productServiceRestClient,
+                metricsCollector,
+                traceLogger
+        );
+    }
+
     private RestClient restClient(
             String baseUrl,
             GatewayTrafficProperties properties,

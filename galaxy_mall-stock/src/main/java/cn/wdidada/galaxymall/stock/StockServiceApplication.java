@@ -41,6 +41,17 @@ public class StockServiceApplication {
         repository.seed("sku-iphone", 10);
         repository.seed("sku-mouse", 1);
         repository.seed("sku-seckill", 2);
+        // 2026-10-17 商城前台新增的展示商品：不补库存的话，下单链路会在
+        // OrderAsyncConsumer 的 reserve 这一步统一返回 stock-not-enough，
+        // 前台「下单 → 待付款 → 支付」就走不通。这里给足量，让演示聚焦在流程而不是缺货。
+        // 注意账本按 productId 记库存（不是 skuId），同一商品不同规格共享这一份。
+        repository.seed("sku-laptop", 300);
+        repository.seed("sku-monitor", 300);
+        repository.seed("sku-earphone", 300);
+        repository.seed("sku-watch", 300);
+        repository.seed("sku-fridge", 300);
+        repository.seed("sku-jacket", 300);
+        repository.seed("sku-coffee", 300);
         return repository;
     }
 
@@ -94,6 +105,13 @@ public class StockServiceApplication {
         stockService.preload("sku-iphone");
         stockService.preload("sku-mouse");
         stockService.preload("sku-seckill");
+        stockService.preload("sku-laptop");
+        stockService.preload("sku-monitor");
+        stockService.preload("sku-earphone");
+        stockService.preload("sku-watch");
+        stockService.preload("sku-fridge");
+        stockService.preload("sku-jacket");
+        stockService.preload("sku-coffee");
         return stockService;
     }
 }
