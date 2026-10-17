@@ -46,6 +46,10 @@ galaxy:
     http:
       connect-timeout-ms: ${GALAXY_GATEWAY_HTTP_CONNECT_TIMEOUT_MS:1000}
       read-timeout-ms: ${GALAXY_GATEWAY_HTTP_READ_TIMEOUT_MS:3000}
+  # 前端埋点 SDK 上报（POST /api/collect）的内存环形缓冲容量。
+  # 只影响埋点留存条数，与上面的限流配额无关：埋点接口不占业务令牌桶。
+  collect:
+    buffer-capacity: ${GALAXY_COLLECT_BUFFER_CAPACITY:5000}
 
 management:
   endpoint:

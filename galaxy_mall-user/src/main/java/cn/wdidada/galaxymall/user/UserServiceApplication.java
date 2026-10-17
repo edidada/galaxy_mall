@@ -34,4 +34,20 @@ public class UserServiceApplication {
     UserService userService(UserRepository userRepository) {
         return new UserService(userRepository);
     }
+
+    /**
+     * 演示账号：昵称和 userId 都能作为登录名，口令统一 {@link AccountService#DEFAULT_PASSWORD}。
+     * 前端登录页会把这组账号显示成“一键登录”，省掉手输。
+     */
+    @Bean
+    AccountService accountService(UserRepository userRepository) {
+        AccountService accountService = new AccountService(userRepository);
+        for (String loginName : new String[] {
+                "andromeda", "orion", "nova", "lyra",
+                "u100", "u101", "u200", "u300"
+        }) {
+            accountService.bindDefaultPassword(loginName);
+        }
+        return accountService;
+    }
 }
