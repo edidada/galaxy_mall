@@ -16,14 +16,16 @@ on:
 jobs:
   build-images:
     name: build images + export tar
-    runs-on: ubuntu-latest
+    # 不用 ubuntu-latest：GitHub 宣布 ubuntu-latest 将于 2026-10-19 起迁移到 Ubuntu 26，
+    # 为避免届时行为突变，这里钉死为 ubuntu-24.04。
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           java-version: '17'
           distribution: 'temurin'
