@@ -26,11 +26,12 @@ jobs:
         os:
           - ubuntu-22.04
           - ubuntu-24.04
-          - windows-2019
           - windows-2022
-          - macos-13
           - macos-14
           - macos-15
+        # 注意：不要再加 windows-2019 / macos-13。
+        # 这两个 runner 标签 GitHub 已下线，请求它们的 job 永远分配不到机器，
+        # 会导致整个 workflow run 永远停留在 queued/in_progress（实测卡了 39 分钟以上）。
         java: [ '21', '24' ]
     steps:
       - uses: actions/checkout@v4
