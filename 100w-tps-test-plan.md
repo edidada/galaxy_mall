@@ -174,3 +174,29 @@ kubectl logs -f deployment/galaxy-mall-gateway
 - **订单创建场景**: 受限于写操作，预期达到 10w-50w TPS
 
 实际结果将取决于具体的 k3s 配置、服务副本数、中间件性能等因素。
+
+## 十二、2026-10-17 集群扩容后的补充（k3s-worker4）
+
+从模板 VM102 克隆 VM109 作为第 4 个 worker，`k3s-worker4 = 192.168.31.243`（4 vCPU / 8.31Gi），
+集群由 4 节点变 5 节点：20 vCPU、约 42.9Gi 可分配内存。完整上机过程与踩坑记在
+`r630-proxmox8/r630-vm-k3s-cluster.md` 第八节，这里只记录会影响压测结论的三点。
+
+1. **压测入口要换**：本分支 §8.2 写的 `http://192.168.31.171:30897` 已失效（`.171` 是 Proxmox 宿主，不承载 k3s 端口）。
+   现在走 Traefik Ingress：节点 IP 取 `.77 / .211 / .251 / .88` 以及新扩容的 `k3s-worker4 = .243` 任意一个，
+   配 `-H "Host: mall.192.168.31.77.nip.io"`，URL 记得加引号（否则 `&` 被 shell 吃掉），并且**不要用域名压测**
+   （本机 DNS 可能被代理 fake-ip 接管，结果会失真）。实测走 `.243` 与走 `.77` 返回一致，svclb 已自动覆盖新节点。
+
+2. **"节点数"不等于"可压上限"**：集群里其实没有镜像仓库——镜像名 `registry.192.168.31.77.nip.io` 只是名字，
+   Traefik 无对应路由（HTTP 404），各节点的 `galaxy-mall/*:k3s` 镜像都是当年 `k3s ctr images import` 手工塞的。
+   后果是 Pod 只能落在本机已有该镜像的节点上，扩容前新增 gateway 副本只会去 master/worker1/worker3。
+   现已把 7 个镜像补齐到 worker4，压测前若换新镜像 tag，务必逐台重新 import，否则会 `ImagePullBackOff` 而不是"扩不上去"。
+
+3. **瓶颈依旧不在节点数**：扩容当时 CPU requests 占比 worker3 已 83%、worker4 为 0%，
+   而实际使用率整体只有个位数（worker2 的 40% 来自同命名空间无关的 Doris BE）。
+   galaxy-mall 所有 Deployment 仍然没有 `requests/limits`（QoS BestEffort）、
+   `ephemeral-storage` request 全为 0，worker2 根分区已 81%。
+   压测前更有效的动作是补 requests/limits + 反亲和把 galaxy-mall 与 doit 隔离，而不是继续加 VM；
+   宿主侧内存已经把 77.5GiB 分配压在 62GiB 物理内存上（KSM 关闭，starrocks VM 占 32GiB），再加第 6 台风险明显。
+
+基于以上，第十一节"商品查询 100w+ TPS"的预期建议按 §十.6 的口径理解为单宿主实验上限，而非可达目标。
+
