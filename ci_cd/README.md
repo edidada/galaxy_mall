@@ -87,3 +87,33 @@ cd /home/wdidada/galaxy_mall
 - Jenkins 中存在 `galaxy-mall-delivery` 流水线任务
 - GitLab 项目已创建并绑定 Jenkins Webhook
 - `git push` 到默认分支后，Jenkins 自动构建并部署
+
+---
+
+## 2026-10-18 追加：业务调度基线（requests/limits + 节点池 + 反亲和 + startupProbe）
+
+上面"全部 Ready"这类验收只说明服务起着，不说明它**占了多少、在哪台机器上**。
+现网 7 个业务 Deployment 原本一个 `resources` 都没写，`describe node` 里
+`ephemeral-storage` requests 全是 0，同时 master（control-plane）上还跑着
+gateway/order/stock 三个业务 Pod。这次补齐的东西都在
+[`deploy/k8s/apply-scheduling-and-resources.sh`](../deploy/k8s/apply-scheduling-and-resources.sh)：
+
+| 加了什么 | 值 | 为什么是这个值 |
+|---|---|---|
+| Java 服务 requests/limits | `200m/512Mi/eph 512Mi` ← `1000m/1Gi/eph 2Gi` | `kubectl top pods` 实测常驻 330–460Mi；limit 1Gi 下 JVM 默认堆约 256Mi，实测 0 重启、下单链路通 |
+| front（nginx） | `25m/32Mi` ← `200m/128Mi` | 实测 4Mi |
+| `nodeSelector: galaxy.io/pool=app` | worker1/worker4 | worker2 根盘 82%、worker3 cpu requests 83%，只有这两个节点有余量；顺带让业务永远离开 control-plane |
+| `topologySpreadConstraints` | maxSkew 1、`part-of=galaxy-mall`、ScheduleAnyway | 整组均分 |
+| 两条软反亲和 | 隔 doit 重户（weight 100）、同服务两副本不同节点（weight 90） | 只做整组均分会让 order 两副本挤在同一节点，那个节点一挂就全灭 |
+| `startupProbe` | period 5s × 36（≤180s） | 加 cpu limit 后 5~6 个 JVM 并发启动，gateway 用 40s+，原来 liveness 只给 30s → 容器被反复杀（实测事件 `failed liveness probe, will be restarted`） |
+
+**执行方式必须是 `kubectl patch --type=strategic`，不能是 `kubectl apply`**：
+`ci_cd/rendered/galaxy-mall.yaml` 渲染出来的 image 是模板 tag，而现网 image 是
+GitHub Actions 推的 `git-<sha>`；apply 会把线上版本打回旧 tag —— 等于借"修调度"之名回滚一次。
+因此 [`scripts/80_apply_business_stack.sh`](scripts/80_apply_business_stack.sh) 改成
+`apply` 之后再跑一次 `apply-scheduling-and-resources.sh patch` 把约束钉回去（幂等）。
+
+现网已按此执行，并额外做了两件事（详见 r630-proxmox8 仓库 `cicd/ops-runbook.md` 第 9 节）：
+`middleware` 的 `rocketmq-broker`/`redis` 先补 `control-plane` 容忍（它们的 local-path 卷绑在 master），
+然后给 `k3s-master` 打 `node-role.kubernetes.io/control-plane:NoSchedule`。
+worker 节点**只打标签不打污点** —— svclb-traefik 不容忍自定义污点，打了会把入口搞挂。

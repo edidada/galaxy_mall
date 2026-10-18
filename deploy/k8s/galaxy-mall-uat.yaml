@@ -287,3 +287,28 @@ spec:
   ports:
     - port: 8085
       targetPort: 8085
+
+# ============================================================================
+# 2026-10-18 追加说明（原文一字未改）
+# ----------------------------------------------------------------------------
+# 这份清单里 6 个 Deployment 原本没有任何 resources —— 现网
+# `kubectl describe node` 的 Allocated resources 里 cpu/memory 只有零星几条、
+# ephemeral-storage 全是 0，调度器看到的压力和真实压力差一个量级
+# （实测 master `kubectl top` 报 59%，同一时刻宿主 `free -m` 报 62%、可用只剩 3155Mi）。
+#
+# requests/limits（含 ephemeral-storage）、节点池 nodeSelector、topologySpreadConstraints、
+# 对 doit 重户的反亲和、startupProbe —— 全部定义在
+#   deploy/k8s/apply-scheduling-and-resources.sh
+# 并由 ci_cd/scripts/80_apply_business_stack.sh 在 apply 之后以
+# kubectl patch --type=strategic 下发。为什么不直接写进本文件：
+#   本文件经 70_render_business_manifest.sh 渲染出的 image 是模板 tag，
+#   而现网 image 是 GitHub Actions 推的 git-<sha>；kubectl apply 会把线上版本
+#   打回旧 tag（等于借"修调度"之名回滚一次）。patch 只合并写到的字段，不动 image。
+#
+# 节点池标签（实测 5 节点）：k3s-master=control-plane（已打 NoSchedule 污点）、
+# k3s-worker1/worker4=app（业务落这里）、k3s-worker2/worker3=data（Doris/Flink 重户）。
+# 不给 worker 打污点的原因写在脚本末尾 NOTE 里：svclb-traefik 只容忍 control-plane
+# 和内置污点，自定义污点会让 Traefik 的 NodePort 入口在 Pod 重建时起不来；
+# doit 的 doris/kafka/hbase/flink 都挂着带 nodeAffinity 的 local-path PVC，
+# 给 data 池打污点会让它们重建时永远 Pending。
+# ============================================================================
