@@ -79,20 +79,30 @@ payment_body="$(request -X POST "$BASE_URL/api/gateway/payments/$order_id")"
 assert_contains "$payment_body" '"status":"SUCCESS"'
 
 log "trigger queue flow"
+# 等待室按 userId 每秒窗口限流（UAT 环境阈值 8/s），单用户必须并发才能触发排队；
+# 排队用户必须是 user 服务里已存在的账号（播种账号只有 u100/u101/u200/u300），
+# 否则网关在 user-not-found 校验就直接拒绝，永远到不了等待室。
+queue_user="${QUEUE_USER:-u101}"
 queue_token=""
-for attempt in 1 2 3 4 5 6 7 8; do
-  queued_body="$(post_json "$BASE_URL/api/gateway/orders" "{\"userId\":\"queue-u1\",\"productId\":\"sku-iphone\",\"quantity\":1,\"clientIp\":\"$CLIENT_IP_PREFIX.9\"}")"
-  if [[ "$queued_body" == *'"status":"QUEUED"'* ]]; then
-    queue_token="$(extract_json_string "$queued_body" "queueToken")"
-    break
-  fi
+queue_work="$(mktemp)"
+for attempt in 1 2 3; do
+  : > "$queue_work"
+  seq 1 32 | xargs -P32 -I{} curl -fsS \
+    -H 'Content-Type: application/json' -X POST \
+    "$BASE_URL/api/gateway/orders" \
+    -d "{\"userId\":\"$queue_user\",\"productId\":\"sku-iphone\",\"quantity\":1,\"clientIp\":\"$CLIENT_IP_PREFIX.9\"}" \
+    >> "$queue_work" || true
+  queue_token="$(extract_json_string "$(cat "$queue_work")" "queueToken" || true)"
+  [[ -n "$queue_token" ]] && break
+  sleep 1
 done
+rm -f "$queue_work"
 
 [[ -n "$queue_token" ]] || fail "queue flow did not return queueToken"
 sleep 2
 
 log "replay queued request"
-admitted_body="$(post_json "$BASE_URL/api/gateway/orders" "{\"userId\":\"queue-u1\",\"productId\":\"sku-iphone\",\"quantity\":1,\"clientIp\":\"$CLIENT_IP_PREFIX.9\",\"queueToken\":\"$queue_token\"}")"
+admitted_body="$(post_json "$BASE_URL/api/gateway/orders" "{\"userId\":\"$queue_user\",\"productId\":\"sku-iphone\",\"quantity\":1,\"clientIp\":\"$CLIENT_IP_PREFIX.9\",\"queueToken\":\"$queue_token\"}")"
 admitted_order_id="$(extract_json_string "$admitted_body" "orderId")"
 [[ -n "$admitted_order_id" ]] || fail "queued replay missing orderId"
 await_status "$admitted_order_id" "WAITING_PAYMENT" >/dev/null
