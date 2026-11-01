@@ -3,6 +3,13 @@ spring:
     name: galaxy-mall-payment
   lifecycle:
     timeout-per-shutdown-phase: 30s
+  autoconfigure:
+    # 引入 spring-boot-starter-jdbc 后 DataSourceAutoConfiguration 会在无 spring.datasource.url
+    # 且 classpath 无内嵌数据库时直接 fail-fast；支付流水是自己装配的 DataSource，
+    # 不需要这两条自动装配（同 user/stock，与 order 靠 runtime H2 兜底的情况不同）。
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
   cloud:
     openfeign:
       client:
@@ -14,6 +21,15 @@ spring:
 server:
   port: 8085
   shutdown: graceful
+
+galaxy:
+  payment:
+    # 支付流水落库：local（内存/不留流水，默认）或 jdbc（MySQL t_payment，库 galaxy_payment）
+    store-backend: ${GALAXY_PAYMENT_STORE_BACKEND:local}
+    db:
+      url: ${PAYMENT_DB_URL:jdbc:mysql://127.0.0.1:3306/galaxy_payment?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8}
+      username: ${PAYMENT_DB_USERNAME:root}
+      password: ${PAYMENT_DB_PASSWORD:root}
 
 services:
   order:
