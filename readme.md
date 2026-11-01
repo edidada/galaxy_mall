@@ -1,5 +1,11 @@
 # galaxy_mall
 
+## K3s 自动化验收
+
+- [可运行的网页/API、安全、性能与运维测试](playwright/README-k3s.md)
+- [2026-11-01 交易、安全、对账与故障实测](playwright/reports/2026-11-01-trade-security-resilience.md)：已发现订单越权与并发支付双成功，当前生产门禁不通过。
+- [初始网页与目录性能基线](playwright/reports/2026-11-01-k3s-acceptance.md)
+
 ```shell
 cd /Users/ibqo/Develop/git/github/java/galaxy_mall/front
 docker load -i nginx-alpine.tar

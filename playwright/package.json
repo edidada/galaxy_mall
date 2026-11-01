@@ -1,0 +1,25 @@
+{
+  "name": "galaxy-mall-k3s-tests",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "playwright test",
+    "test:unit": "node --test scripts/soak-manifest.test.mjs && playwright test --project=tooling",
+    "test:api": "playwright test --project=api",
+    "test:smoke": "playwright test --project=api --project=chromium --project=mobile",
+    "test:auth": "playwright test --project=auth",
+    "test:transaction": "playwright test --project=transaction",
+    "test:security": "playwright test --project=security",
+    "test:resilience": "playwright test --project=resilience",
+    "report": "playwright show-report artifacts/html",
+    "k3s:check": "node scripts/k3s-check.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "22.20.0",
+    "typescript": "5.9.3"
+  }
+}

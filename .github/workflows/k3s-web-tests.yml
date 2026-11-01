@@ -1,0 +1,154 @@
+name: K3s Web Acceptance
+
+on:
+  pull_request:
+    paths: ['playwright/**', '.github/workflows/k3s-web-tests.yml']
+  push:
+    paths: ['playwright/**', '.github/workflows/k3s-web-tests.yml']
+  workflow_dispatch:
+    inputs:
+      auth:
+        description: 'Run dedicated account login/logout tests'
+        type: boolean
+        default: false
+      transactions:
+        description: 'Enable UAT order writes; security/checkout soak create additional orders'
+        type: boolean
+        default: false
+      performance:
+        description: 'Run catalog k6 baseline: 5 RPS for 30 seconds'
+        type: boolean
+        default: false
+      security:
+        description: 'Ownership and concurrent payment tests (requires transactions)'
+        type: boolean
+        default: false
+      soak:
+        description: 'Run 30-minute catalog soak at 5 RPS'
+        type: boolean
+        default: false
+      checkout_soak:
+        description: 'Create/pay 30 UAT orders over 30 minutes (requires transactions)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: k3s-web-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tooling:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: playwright
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: npx playwright test --list
+
+  k3s-acceptance:
+    if: github.event_name == 'workflow_dispatch'
+    needs: tooling
+    # Configure a protected GitHub Environment and a dedicated LAN runner with these labels.
+    runs-on: [self-hosted, linux, k3s-e2e]
+    environment: k3s-uat
+    timeout-minutes: 85
+    defaults:
+      run:
+        working-directory: playwright
+    env:
+      E2E_BASE_URL: ${{ vars.K3S_WEB_BASE_URL }}
+      E2E_ENV: uat
+      E2E_AUTH: ${{ inputs.auth && '1' || '0' }}
+      E2E_ALLOW_WRITES: ${{ inputs.transactions && '1' || '0' }}
+      E2E_USERNAME: ${{ secrets.E2E_USERNAME }}
+      E2E_PASSWORD: ${{ secrets.E2E_PASSWORD }}
+      E2E_PRODUCT_ID: ${{ vars.E2E_PRODUCT_ID }}
+      E2E_OTHER_USERNAME: ${{ secrets.E2E_OTHER_USERNAME }}
+      E2E_OTHER_PASSWORD: ${{ secrets.E2E_OTHER_PASSWORD }}
+      E2E_REPORT_DIR: artifacts/smoke
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: playwright/package-lock.json
+      - name: Require explicit cluster target
+        run: test -n "$E2E_BASE_URL"
+      - name: Validate security test prerequisites
+        if: inputs.security
+        env:
+          WRITES_REQUESTED: ${{ inputs.transactions }}
+        run: |
+          test "$WRITES_REQUESTED" = true
+          test -n "$E2E_OTHER_USERNAME"
+          test -n "$E2E_OTHER_PASSWORD"
+      - name: Validate checkout soak write consent
+        if: inputs.checkout_soak
+        env:
+          WRITES_REQUESTED: ${{ inputs.transactions }}
+        run: |
+          test "$WRITES_REQUESTED" = true
+          test -n "$E2E_USERNAME"
+          test -n "$E2E_PASSWORD"
+          test -n "$E2E_PRODUCT_ID"
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - name: Select this run's paid test order
+        id: sample-order
+        if: ${{ !cancelled() && inputs.security }}
+        run: echo "id=$(node scripts/latest-order.mjs)" >> "$GITHUB_OUTPUT"
+      - name: Ownership and concurrent payment gates
+        if: ${{ !cancelled() && inputs.security && steps.sample-order.outcome == 'success' }}
+        env:
+          E2E_SECURITY: '1'
+          E2E_ORDER_ID: ${{ steps.sample-order.outputs.id }}
+          E2E_REPORT_DIR: artifacts/security
+        run: npm run test:security
+      - name: Optional performance baseline (runner must have k6)
+        if: inputs.performance
+        env:
+          K6_ALLOW_LOAD: '1'
+          K6_OUTPUT_DIR: artifacts/performance
+        run: |
+          mkdir -p artifacts/performance
+          k6 run performance/catalog.k6.js
+      - name: Optional 30-minute catalog soak
+        if: inputs.soak
+        env:
+          K6_ALLOW_LOAD: '1'
+          LOAD_DURATION: 30m
+          K6_OUTPUT_DIR: artifacts/soak
+        run: |
+          mkdir -p artifacts/soak
+          k6 run --quiet performance/catalog.k6.js
+      - name: Optional 30-minute checkout soak
+        if: inputs.checkout_soak
+        env:
+          LOAD_ALLOW_ORDER_WRITES: '1'
+          LOAD_DURATION: 30m
+          K6_OUTPUT_DIR: artifacts/checkout-soak
+        run: |
+          mkdir -p artifacts/checkout-soak
+          k6 run --quiet --console-output=artifacts/checkout-soak/orders.log performance/checkout.k6.js
+          node scripts/soak-manifest.mjs artifacts/checkout-soak/orders.log 30
+      - name: Store evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k3s-web-${{ github.run_id }}
+          path: playwright/artifacts/
+          retention-days: 7
