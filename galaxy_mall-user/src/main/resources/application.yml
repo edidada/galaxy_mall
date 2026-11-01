@@ -3,6 +3,13 @@ spring:
     name: galaxy-mall-user
   lifecycle:
     timeout-per-shutdown-phase: 30s
+  autoconfigure:
+    # 引入 spring-boot-starter-jdbc 后 DataSourceAutoConfiguration 会在无 spring.datasource.url
+    # 且 classpath 无内嵌数据库时直接 fail-fast；用户存储是自己装配的 DataSource（UserStoreConfig），
+    # 不需要这两条自动装配。
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration
 
 server:
   port: 8081
