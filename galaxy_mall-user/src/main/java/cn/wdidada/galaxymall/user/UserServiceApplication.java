@@ -1,11 +1,15 @@
 package cn.wdidada.galaxymall.user;
 
-import cn.wdidada.galaxymall.common.domain.User;
 import cn.wdidada.galaxymall.db.UserRepository;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
 
+/**
+ * 演示账号：昵称和 userId 都能作为登录名，口令统一 {@link AccountService#DEFAULT_PASSWORD}。
+ * 前端登录页会把这组账号显示成“一键登录”，省掉手输。
+ */
 @SpringBootApplication(
         scanBasePackageClasses = UserServiceApplication.class,
         excludeName = {
@@ -14,20 +18,14 @@ import org.springframework.context.annotation.Bean;
                 "org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration"
         }
 )
+@Import(UserStoreConfig.class)
 public class UserServiceApplication {
+
+    // 种子账号已迁移到 UserStoreConfig.SEED_USERS（local/jdbc 两种后端统一“不存在才插入”，
+    // 运行期注册的新账号不再被重启回滚——jdbc 后端落 t_user 表）。
 
     public static void main(String[] args) {
         SpringApplication.run(UserServiceApplication.class, args);
-    }
-
-    @Bean
-    UserRepository userRepository() {
-        UserRepository repository = new UserRepository();
-        repository.save(new User("u100", "andromeda", 3));
-        repository.save(new User("u101", "orion", 2));
-        repository.save(new User("u200", "nova", 5));
-        repository.save(new User("u300", "lyra", 1));
-        return repository;
     }
 
     @Bean
@@ -35,10 +33,6 @@ public class UserServiceApplication {
         return new UserService(userRepository);
     }
 
-    /**
-     * 演示账号：昵称和 userId 都能作为登录名，口令统一 {@link AccountService#DEFAULT_PASSWORD}。
-     * 前端登录页会把这组账号显示成“一键登录”，省掉手输。
-     */
     @Bean
     AccountService accountService(UserRepository userRepository) {
         AccountService accountService = new AccountService(userRepository);

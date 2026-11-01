@@ -1,36 +1,21 @@
 package cn.wdidada.galaxymall.db;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+/**
+ * 库存“DB 账本”抽象：真正决定 confirm 成败的持久扣减层。
+ *
+ * <p>内存实现（{@code InMemoryStockLedgerRepository}）是老 demo 行为——每 Pod 份、重启重播种，
+ * 多副本会分裂；JDBC 实现（{@code JdbcStockLedgerRepository}，表 {@code t_stock_ledger}）是
+ * 根治方案。选择开关 {@code galaxy.stock.ledger-backend}（local/jdbc）。
+ *
+ * <p>约定：{@code seed} 为“不存在才初始化”，重启不能覆盖运行期扣减结果。
+ */
+public interface StockLedgerRepository {
 
-public final class StockLedgerRepository {
+    void seed(String productId, int stock);
 
-    private final Map<String, AtomicInteger> stocks = new ConcurrentHashMap<>();
-    private final Map<String, Object> locks = new ConcurrentHashMap<>();
+    int get(String productId);
 
-    public void seed(String productId, int stock) {
-        stocks.put(productId, new AtomicInteger(stock));
-        locks.putIfAbsent(productId, new Object());
-    }
+    boolean decreaseWithLock(String productId, int quantity);
 
-    public int get(String productId) {
-        return stocks.getOrDefault(productId, new AtomicInteger()).get();
-    }
-
-    public boolean decreaseWithLock(String productId, int quantity) {
-        Object lock = locks.computeIfAbsent(productId, ignored -> new Object());
-        synchronized (lock) {
-            AtomicInteger current = stocks.computeIfAbsent(productId, ignored -> new AtomicInteger());
-            if (current.get() < quantity) {
-                return false;
-            }
-            current.addAndGet(-quantity);
-            return true;
-        }
-    }
-
-    public void increase(String productId, int quantity) {
-        stocks.computeIfAbsent(productId, ignored -> new AtomicInteger()).addAndGet(quantity);
-    }
+    void increase(String productId, int quantity);
 }

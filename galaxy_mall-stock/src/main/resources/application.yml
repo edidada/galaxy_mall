@@ -18,6 +18,12 @@ galaxy:
   stock:
     backend: ${GALAXY_STOCK_BACKEND:in-memory}
     local-rate-limit: ${GALAXY_STOCK_LOCAL_RATE_LIMIT:10000}
+    # 库存“DB 账本”后端：local（每 Pod 内存，老 demo 行为）或 jdbc（MySQL t_stock_ledger，多副本一致）
+    ledger-backend: ${GALAXY_STOCK_LEDGER_BACKEND:local}
+    db:
+      url: ${STOCK_DB_URL:jdbc:mysql://127.0.0.1:3306/galaxy_stock?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8}
+      username: ${STOCK_DB_USERNAME:root}
+      password: ${STOCK_DB_PASSWORD:root}
 
 management:
   endpoint:

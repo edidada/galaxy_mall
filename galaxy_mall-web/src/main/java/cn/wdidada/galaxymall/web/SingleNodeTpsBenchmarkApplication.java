@@ -3,6 +3,7 @@ package cn.wdidada.galaxymall.web;
 import cn.wdidada.galaxymall.common.IdGenerator;
 import cn.wdidada.galaxymall.common.domain.Order;
 import cn.wdidada.galaxymall.db.OrderRepository;
+import cn.wdidada.galaxymall.db.InMemoryStockLedgerRepository;
 import cn.wdidada.galaxymall.db.StockLedgerRepository;
 import cn.wdidada.galaxymall.stock.InMemoryStockBackend;
 import cn.wdidada.galaxymall.stock.StockBackend;
@@ -100,7 +101,7 @@ public final class SingleNodeTpsBenchmarkApplication {
                 "Single-JVM inventory reserve and confirm path using InMemoryStockBackend",
                 options,
                 () -> {
-                    StockLedgerRepository stockLedgerRepository = new StockLedgerRepository();
+                    StockLedgerRepository stockLedgerRepository = new InMemoryStockLedgerRepository();
                     stockLedgerRepository.seed(PRODUCT_ID, BENCHMARK_STOCK);
                     MetricsCollector metricsCollector = new MetricsCollector();
                     StockBackend stockBackend = new InMemoryStockBackend(stockLedgerRepository, metricsCollector, Integer.MAX_VALUE);

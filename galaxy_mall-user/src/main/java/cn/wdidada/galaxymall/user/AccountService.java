@@ -22,8 +22,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>账号来源有两处：
  * <ol>
- *   <li>{@link UserRepository} 里已播种的用户 —— 用 userId 或 nickname 作为登录名，
- *       默认口令统一 {@value #DEFAULT_PASSWORD}（仅本地/UAT 演示）。</li>
+ *   <li>种子账号——写死在 {@link UserStoreConfig#SEED_USERS}（u100/u101/u200/u300，
+ *       昵称 andromeda/orion/nova/lyra），重启即恢复该状态；存储后端为 local 时
+ *       运行期注册的新账号重启会丢失，jdbc 后端（t_user 表）不丢。</li>
  *   <li>{@link #register} —— 前端注册页新建的账号，同样写入 UserRepository，
  *       这样下单链路里的 {@code user-not-found} 校验才能通过。</li>
  * </ol>

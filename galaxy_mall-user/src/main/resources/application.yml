@@ -8,6 +8,15 @@ server:
   port: 8081
   shutdown: graceful
 
+galaxy:
+  user:
+    # 用户存储后端：local（内存，演示/单测默认）或 jdbc（MySQL t_user，库 galaxy_user）
+    store-backend: ${GALAXY_USER_STORE_BACKEND:local}
+    db:
+      url: ${USER_DB_URL:jdbc:mysql://127.0.0.1:3306/galaxy_user?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8}
+      username: ${USER_DB_USERNAME:root}
+      password: ${USER_DB_PASSWORD:root}
+
 management:
   endpoint:
     health:
