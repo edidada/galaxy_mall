@@ -1,0 +1,10 @@
+node_modules/
+artifacts/
+.auth/
+.env
+.env.*
+!.env.example
+*.har
+.DS_Store
+._*
+__pycache__/
