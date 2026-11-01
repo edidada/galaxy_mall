@@ -252,6 +252,10 @@ class SpringCloudSmokeTest {
         properties.add("server.port=" + port);
         properties.add("spring.main.lazy-initialization=false");
         properties.add("logging.level.root=ERROR");
+        // 单机冒烟不起 Seata Server；classpath 里有 order/payment 的 seata starter，
+        // SeataAutoConfiguration 在没有 seata.enabled=false 的上下文（user/product/stock/gateway）
+        // 会按 matchIfMissing 启动 GlobalTransactionScanner 并因连不上 8091 直接 fail-fast。
+        properties.add("seata.enabled=false");
         if (REAL_INFRA) {
             properties.add("spring.profiles.active=uat");
         }
